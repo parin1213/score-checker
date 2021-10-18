@@ -16,6 +16,8 @@ using Amazon.S3.Model;
 using Amazon;
 using System.Security.Cryptography;
 using System.Threading;
+using System.Reflection;
+using score_checker.Models;
 
 // Assembly attribute to enable the Lambda function's JSON input to be converted into a .NET class.
 [assembly: LambdaSerializer(typeof(Amazon.Lambda.Serialization.Json.JsonSerializer))]
@@ -38,15 +40,23 @@ namespace genshin_relic_score
             //------------------------------
             LambdaResponse response = createDefaultResponse();
             var body = new Dictionary<string, object>();
-
+            byte[] imageBinary = null;
 
             try
             {
                 //------------------------------
                 // 送信された画像を復号化
                 //------------------------------
-                var imageBinary = decryptBase64String(req.Body);
-                //var imageBinary = File.ReadAllBytes(@"C:\Users\schwa\Videos\Captures\relic\DDD844CF49F78ADBAEB064005E5BED52.png");
+                try
+                {
+                    imageBinary = decryptBase64String(req.Body, req.IsBase64Encoded);
+                    //imageBinary = File.ReadAllBytes(@"C:\Users\schwa\Videos\Captures\relic\DDD844CF49F78ADBAEB064005E5BED52.png");
+                }
+                catch
+                {
+                    response.statusCode = HttpStatusCode.BadRequest;
+                    throw;
+                }
 
                 //------------------------------
                 // 応答固有のID(画像のハッシュ値)の生成
@@ -57,8 +67,22 @@ namespace genshin_relic_score
                 //------------------------------
                 // キャッシュ取得
                 //------------------------------
-                var cacheExists = tryGetCacheData(hash, body);
-                if (cacheExists) { return response; }
+                var strCached = req?.QueryStringParameters?["cached"]?.ToString() ?? "";
+                bool.TryParse(strCached, out var cached);
+                var cacheExists = cached && tryGetCacheData(hash, body);
+
+                //------------------------------
+                // 画像認識
+                //------------------------------
+                var relic = new Relic(imageBinary);
+                body.TryGetValue("word_list", out var objWordList);
+                var word_list = objWordList as List<string>;
+                if (word_list == null || cacheExists == false)
+                {
+                    word_list = relic.detectWords();
+                    body.Add("word_list", word_list);
+
+                }
 
                 //------------------------------
                 // S3へ保存(画像)
@@ -66,20 +90,9 @@ namespace genshin_relic_score
                 saveFIleForS3($"image/{hash}.png", imageBinary);
 
                 //------------------------------
-                // 画像認識
-                //------------------------------
-                var relic = new Relic(imageBinary);
-                var word_list = relic.detectWords();
-
-                //------------------------------
                 // サブステータス抽出
                 //------------------------------
                 var relicSubStatusList = relic.getRelicSubStatus(word_list);
-
-                //------------------------------
-                // S3へ保存(サブステータス)
-                //------------------------------
-                saveFIleForS3($"image/{hash}_status.json", Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(relicSubStatusList)));
 
                 //------------------------------
                 // スコア計算
@@ -87,43 +100,72 @@ namespace genshin_relic_score
                 double score = relic.calculateScore(relicSubStatusList);
 
                 //------------------------------
-                // S3へ保存(スコア)
+                // 応答設定
                 //------------------------------
-                saveFIleForS3($"image/{hash}_score.json",
-                    Encoding.UTF8.GetBytes(
-                        JsonConvert.SerializeObject(
-                            new Dictionary<string, string>()
-                            {
-                            { "score", $"{score:0.0#}"}
-                            })
-                        ));
+                body["score"] = $"{score:0.0#}";
+                body["sub_status"] = relicSubStatusList;
 
                 //------------------------------
                 // 応答設定
                 //------------------------------
-                body.Add("score", $"{score:0.0#}");
-                body.Add("sub_status", relicSubStatusList);
+                var mainStatus = relic.getMainStatus(word_list);
+                body["main_status"] = mainStatus.FirstOrDefault();
+
+                //------------------------------
+                // 応答設定
+                //------------------------------
+                var category = relic.getCategory(word_list);
+                body["category"] = category;
+
+                //------------------------------
+                // 応答設定
+                //------------------------------
+                var set = relic.getSetName(word_list);
+                body["set"] = set;
+
+                //------------------------------
+                // S3へ保存(応答データ)
+                //------------------------------
+                saveFIleForS3($"image/{hash}_status.json", Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(body)));
+
             }
             catch (Exception ex)
             {
-                var dev_mode = req.QueryStringParameters["dev_mode"]?.ToString();
+                response.statusCode = HttpStatusCode.InternalServerError;
+
+                var dev_mode = req?.QueryStringParameters?["dev_mode"]?.ToString();
                 if (dev_mode == "1")
                 {
-                    body["body"] = req.Body;
+                    body["body"] = req?.Body;
                     body["StackTrace"] = ex.ToString();
                 }
+
+                body["ExceptionMessages"] = "Internal Server Error";
             }
             finally
             {
+                var assembly = Assembly.GetExecutingAssembly().GetName();
+                var ver = assembly.Version;
+
+                // アセンブリのバージョン
+                body["version"] = $"{ver.Major}.{ver.Minor}.{ver.Build}.{ver.Revision}";
+
+                response.statusCode = HttpStatusCode.OK;
                 response.body = JsonConvert.SerializeObject(body);
             }
             return response;
         }
 
-        public byte[] decryptBase64String(string base64String)
+        public byte[] decryptBase64String(string base64String, bool IsBase64Encoded)
         {
-            var data = Convert.FromBase64String(base64String);
-            var dataString = Encoding.UTF8.GetString(data);
+            var dataString = base64String;
+            byte[] data = Encoding.ASCII.GetBytes(dataString);
+
+            if (IsBase64Encoded)
+            {
+                data = Convert.FromBase64String(base64String);
+                dataString = Encoding.UTF8.GetString(data);
+            }
             if (dataString.StartsWith("data:"))
             {
                 // ブラウザから送信されるデータは"data:image/xxx, (base64文字列) "形式なので変換する
@@ -136,6 +178,11 @@ namespace genshin_relic_score
 
         private void saveFIleForS3(string filePath, byte[] bin)
         {
+#if DEBUG
+            var path = @"C:\dev\aws\s3\relic-server-log\";
+            path = Path.Combine(path, filePath);
+            File.WriteAllBytes(path, bin);
+#else
             var client = new AmazonS3Client(RegionEndpoint.APNortheast1);
 
             PutObjectRequest request = new PutObjectRequest()
@@ -158,6 +205,7 @@ namespace genshin_relic_score
             {
                 throw;
             }
+#endif
         }
 
         private LambdaResponse createDefaultResponse()
@@ -179,6 +227,11 @@ namespace genshin_relic_score
 
         private bool tryGetCacheData(string hash, Dictionary<string, object> dic)
         {
+#if DEBUG
+            var path = @"C:\dev\aws\s3\relic-server-log\";
+            path = Path.Combine(path, $"image/{hash}_status.json");
+            var relic = JsonConvert.DeserializeObject<RelicScore>(File.ReadAllText(path));
+#else
             var client = new AmazonS3Client(RegionEndpoint.APNortheast1);
 
             //------------------------------
@@ -198,21 +251,17 @@ namespace genshin_relic_score
             //------------------------------
             var status = client.GetObjectAsync("relic-server-log", $"image/{hash}_status.json").Result;
             var statusStream = new StreamReader(status.ResponseStream);
-            var statusDic = JsonConvert.DeserializeObject<Dictionary<string, double>>(statusStream.ReadToEnd());
-
-            var score = client.GetObjectAsync("relic-server-log", $"image/{hash}_score.json").Result;
-            var scoreStream = new StreamReader(score.ResponseStream);
-            var scoreDic = JsonConvert.DeserializeObject<Dictionary<string, string>>(scoreStream.ReadToEnd());
-
+            var relic = JsonConvert.DeserializeObject<RelicScore>(statusStream.ReadToEnd());
+#endif
             //------------------------------
             // キャッシュ値格納
             //------------------------------
-            dic["sub_status"] = statusDic;
-
-            foreach (var pair in scoreDic)
-            {
-                dic[pair.Key] = pair.Value;
-            }
+            dic["word_list"]    = relic.word_list;
+            dic["score"]        = relic.score;
+            dic["sub_status"]   = relic.sub_status;
+            dic["main_status"]  = relic.main_status;
+            dic["category"]     = relic.category;
+            dic["set"]          = relic.set;
 
             return true;
         }
