@@ -11,6 +11,7 @@ using genshin_relic_score;
 using static genshin_relic_score.Function;
 using Newtonsoft.Json.Linq;
 using genshin.relic.score.Models;
+using genshin.relic.score.Models.Lambda;
 
 namespace genshin_relic_score.Tests
 {

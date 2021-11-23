@@ -17,7 +17,11 @@ using Amazon;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Reflection;
-using score_checker.Models;
+using genshin.relic.score.Models.Lambda;
+using genshin.relic.score.Models.ResponseData;
+using genshin.relic.score.Models.Recognize;
+using System.Drawing;
+using genshin.relic.score.Extentions;
 
 // Assembly attribute to enable the Lambda function's JSON input to be converted into a .NET class.
 [assembly: LambdaSerializer(typeof(Amazon.Lambda.Serialization.Json.JsonSerializer))]
@@ -33,13 +37,13 @@ namespace genshin_relic_score
         /// <param name="input"></param>
         /// <param name="context"></param>
         /// <returns></returns>
-        public LambdaResponse FunctionHandler(Request req, ILambdaContext context)
+        public async Task<LambdaResponse> FunctionHandler(Request req, ILambdaContext context)
         {
             //------------------------------
             // 応答電文の設定
             //------------------------------
             LambdaResponse response = createDefaultResponse();
-            var body = new Dictionary<string, object>();
+            var body = new ResponseRelicData();
             byte[] imageBinary = null;
 
             try
@@ -69,64 +73,79 @@ namespace genshin_relic_score
                 //------------------------------
                 var strCached = req?.QueryStringParameters?["cached"]?.ToString() ?? "";
                 bool.TryParse(strCached, out var cached);
-                var cacheExists = cached && tryGetCacheData(hash, body);
+                var cacheExists = cached;
+                if (cached)
+                {
+                    cacheExists &= await tryGetCacheData(hash, body);
+                }
 
                 //------------------------------
                 // 画像認識
                 //------------------------------
                 var relic = new Relic(imageBinary);
-                body.TryGetValue("word_list", out var objWordList);
-                var word_list = objWordList as List<string>;
+                var word_list = body.word_list as IEnumerable<RelicWord>;
                 if (word_list == null || cacheExists == false)
                 {
-                    word_list = relic.detectWords();
-                    body.Add("word_list", word_list);
-
+#if WINFORMS
+                    word_list = Enumerable.Empty<RelicWord>();
+                    body.word_list = word_list.ToList();
+#else
+                    word_list = await relic.detectWords();
+                    body.word_list = word_list.ToList();
+#endif
                 }
 
                 //------------------------------
                 // S3へ保存(画像)
                 //------------------------------
-                saveFIleForS3($"image/{hash}.png", imageBinary);
+                await saveFIleForS3($"image/{hash}.png", imageBinary);
 
                 //------------------------------
                 // サブステータス抽出
                 //------------------------------
                 var relicSubStatusList = relic.getRelicSubStatus(word_list);
 
-                //------------------------------
-                // スコア計算
-                //------------------------------
-                double score = relic.calculateScore(relicSubStatusList);
+                var multipleRelicSubStatusList = relic.chunkRelicSubStatus(relicSubStatusList);
+                relicSubStatusList = multipleRelicSubStatusList.FirstOrDefault()?.ToList();
+                relicSubStatusList = relicSubStatusList ?? Enumerable.Empty<Status>().ToList();
+
+                if (relicSubStatusList.Any() == false)
+                {
+#if WINFORMS
+#else
+                    word_list = relic.detectWords_fallback();
+                    body.word_list = word_list.ToList();
+                    relicSubStatusList = relic.getRelicSubStatus(word_list);
+#endif
+                }
+
+                setRelic(body, relic, word_list, relicSubStatusList);
 
                 //------------------------------
-                // 応答設定
+                // ハッシュ値
                 //------------------------------
-                body["score"] = $"{score:0.0#}";
-                body["sub_status"] = relicSubStatusList;
+                body.RelicMD5 = hash;
 
-                //------------------------------
-                // 応答設定
-                //------------------------------
-                var mainStatus = relic.getMainStatus(word_list);
-                body["main_status"] = mainStatus.FirstOrDefault();
+                // 2個以上聖遺物が検知された場合
+                if (multipleRelicSubStatusList.Skip(1).Any())
+                {
+                    var extendRelic = new List<ResponseRelicData>();
+                    foreach (var extendRelicSubStatusList in multipleRelicSubStatusList.Skip(1))
+                    {
+                        var extendBody = new ResponseRelicData();
+                        extendBody.word_list = word_list.ToList();
 
-                //------------------------------
-                // 応答設定
-                //------------------------------
-                var category = relic.getCategory(word_list);
-                body["category"] = category;
+                        setRelic(extendBody, relic, word_list, extendRelicSubStatusList.ToList());
+                        extendRelic.Add(extendBody);
+                    }
 
-                //------------------------------
-                // 応答設定
-                //------------------------------
-                var set = relic.getSetName(word_list);
-                body["set"] = set;
+                    body.extendRelic = extendRelic;
+                }
 
                 //------------------------------
                 // S3へ保存(応答データ)
                 //------------------------------
-                saveFIleForS3($"image/{hash}_status.json", Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(body)));
+                await saveFIleForS3($"image/{hash}_status.json", Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(body)));
 
             }
             catch (Exception ex)
@@ -136,11 +155,13 @@ namespace genshin_relic_score
                 var dev_mode = req?.QueryStringParameters?["dev_mode"]?.ToString();
                 if (dev_mode == "1")
                 {
-                    body["body"] = req?.Body;
-                    body["StackTrace"] = ex.ToString();
+                    body.StackTrace = ex.ToString();
+                    body.req = JsonConvert.SerializeObject(req);
                 }
 
-                body["ExceptionMessages"] = "Internal Server Error";
+
+
+                body.ExceptionMessages = "Internal Server Error";
             }
             finally
             {
@@ -148,12 +169,70 @@ namespace genshin_relic_score
                 var ver = assembly.Version;
 
                 // アセンブリのバージョン
-                body["version"] = $"{ver.Major}.{ver.Minor}.{ver.Build}.{ver.Revision}";
+                body.version = $"{ver.Major}.{ver.Minor}.{ver.Build}.{ver.Revision}";
 
                 response.statusCode = HttpStatusCode.OK;
                 response.body = JsonConvert.SerializeObject(body);
             }
             return response;
+        }
+
+        private static void setRelic(ResponseRelicData body, Relic relic, IEnumerable<RelicWord> word_list, List<Status> relicSubStatusList)
+        {
+            //------------------------------
+            // スコア計算
+            //------------------------------
+            double score = relic.calculateScore(relicSubStatusList);
+
+            //------------------------------
+            // 応答設定
+            //------------------------------
+            body.score = $"{score:0.0#}";
+            body.sub_status = relicSubStatusList;
+
+            //------------------------------
+            // メインステータス
+            //------------------------------
+            var mainStatus = relic.getMainStatus(word_list);
+            body.main_status = selectMainStatus(mainStatus, relicSubStatusList);
+
+            //------------------------------
+            // 部位
+            //------------------------------
+            var category = relic.getCategory(word_list);
+            body.category = category;
+
+            //------------------------------
+            // 聖遺物セット
+            //------------------------------
+            var set = relic.getSetName(word_list);
+            body.set = set;
+
+            //------------------------------
+            // 切抜箇所
+            //------------------------------
+            var cropHint = relic.getCropHint(body);
+            body.cropHint = cropHint;
+        }
+
+        private static Status selectMainStatus(List<Status> mainStatus, List<Status> relicSubStatusList)
+        {
+            if (mainStatus.Any() == false || relicSubStatusList.Any() == false) { return null; }
+
+            var subRelicRect = relicSubStatusList.Select(s => s.rect)
+                                                 .Aggregate((r1, r2) => Rectangle.Union(r1, r2));
+
+            var min_x = subRelicRect.Location.X - subRelicRect.Width;
+            var max_x = subRelicRect.Location.X + subRelicRect.Width;
+
+            var main = mainStatus.Where(m => m.rect.Top < subRelicRect.Top)
+                                  .Where(m => min_x < m.rect.Location.X && m.rect.Location.X < max_x)
+                                  .OrderBy(m => m.rect.Location.Distance(subRelicRect.Location))
+                                  .FirstOrDefault();
+
+            main = main ?? mainStatus.FirstOrDefault();
+
+            return main;
         }
 
         public byte[] decryptBase64String(string base64String, bool IsBase64Encoded)
@@ -176,12 +255,14 @@ namespace genshin_relic_score
             return data;
         }
 
-        private void saveFIleForS3(string filePath, byte[] bin)
+        private async Task saveFIleForS3(string filePath, byte[] bin)
         {
-#if DEBUG
-            var path = @"C:\dev\aws\s3\relic-server-log\";
+#if WINFORMS
+            await Task.CompletedTask;
+#elif DEBUG
+            var path = @"C:\dev\aws\s3\relic-server-log_next\";
             path = Path.Combine(path, filePath);
-            File.WriteAllBytes(path, bin);
+            await File.WriteAllBytesAsync(path, bin);
 #else
             var client = new AmazonS3Client(RegionEndpoint.APNortheast1);
 
@@ -199,7 +280,7 @@ namespace genshin_relic_score
 
             try
             {
-                client.PutObjectAsync(request).Wait();
+                await client.PutObjectAsync(request);
             }
             catch (Exception e)
             {
@@ -225,12 +306,18 @@ namespace genshin_relic_score
             return response;
         }
 
-        private bool tryGetCacheData(string hash, Dictionary<string, object> dic)
+        private async Task<bool> tryGetCacheData(string hash, ResponseRelicData dic)
         {
-#if DEBUG
-            var path = @"C:\dev\aws\s3\relic-server-log\";
+#if DEBUG || WINFORMS
+            var path = @"C:\dev\aws\s3\relic-server-log_next\";
             path = Path.Combine(path, $"image/{hash}_status.json");
-            var relic = JsonConvert.DeserializeObject<RelicScore>(File.ReadAllText(path));
+            ResponseRelicData relic = null;
+            try
+            {
+                var relicString = await File.ReadAllTextAsync(path);
+                relic = JsonConvert.DeserializeObject<ResponseRelicData>(relicString);
+            }
+            catch { }
 #else
             var client = new AmazonS3Client(RegionEndpoint.APNortheast1);
 
@@ -243,25 +330,31 @@ namespace genshin_relic_score
                 Prefix = $"image/{hash}",
                 MaxKeys = 3
             };
-            var response = client.ListObjectsV2Async(request, CancellationToken.None).Result;
+            var response = await client.ListObjectsV2Async(request, CancellationToken.None);
             if (response.S3Objects.Count() != 3) { return false; }
 
             //------------------------------
             // キャッシュ取得
             //------------------------------
-            var status = client.GetObjectAsync("relic-server-log", $"image/{hash}_status.json").Result;
+            var status = await client.GetObjectAsync("relic-server-log", $"image/{hash}_status.json");
             var statusStream = new StreamReader(status.ResponseStream);
-            var relic = JsonConvert.DeserializeObject<RelicScore>(statusStream.ReadToEnd());
+            ResponseRelicData relic = null;
+            try
+            {
+                var relicString = await statusStream.ReadToEndAsync();
+                relic = JsonConvert.DeserializeObject<ResponseRelicData>(relicString);
+            }
+            catch { }
 #endif
             //------------------------------
             // キャッシュ値格納
             //------------------------------
-            dic["word_list"]    = relic.word_list;
-            dic["score"]        = relic.score;
-            dic["sub_status"]   = relic.sub_status;
-            dic["main_status"]  = relic.main_status;
-            dic["category"]     = relic.category;
-            dic["set"]          = relic.set;
+            dic.word_list    = relic?.word_list;
+            dic.score        = relic?.score;
+            dic.sub_status   = relic?.sub_status;
+            dic.main_status  = relic?.main_status;
+            dic.category     = relic?.category;
+            dic.set          = relic?.set;
 
             return true;
         }

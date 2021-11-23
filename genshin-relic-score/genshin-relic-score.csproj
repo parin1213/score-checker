@@ -8,13 +8,19 @@
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <Version>1.1.0</Version>
   </PropertyGroup>
-  <ItemGroup>
-    <Compile Include="..\..\..\..\_src\score-checker\Models\RelicScore.cs" Link="score_checker\RelicScore.cs" />
-  </ItemGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <DefineConstants>TRACE;AWS</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <DefineConstants>TRACE;AWS</DefineConstants>
+  </PropertyGroup>
   <ItemGroup>
     <Content Include="..\..\..\..\..\dev\gcp\.secrets\gcp.json" Link="gcp.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Extentions\Extentions.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Amazon.Lambda.Core" Version="2.0.0" />
@@ -31,8 +37,5 @@
     <None Update="test.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="score_checker\" />
   </ItemGroup>
 </Project>

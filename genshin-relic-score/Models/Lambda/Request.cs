@@ -4,7 +4,7 @@ using System.Text;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-namespace genshin.relic.score.Models
+namespace genshin.relic.score.Models.Lambda
 {
     public class Request
     {

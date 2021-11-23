@@ -4,7 +4,7 @@ using System.Net;
 using System.Text;
 using Newtonsoft.Json;
 
-namespace genshin.relic.score.Models
+namespace genshin.relic.score.Models.Lambda
 {
     public class LambdaResponse
     {
