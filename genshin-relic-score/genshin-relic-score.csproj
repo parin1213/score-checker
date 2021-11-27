@@ -31,6 +31,9 @@
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
   </ItemGroup>
   <ItemGroup>
+    <None Update="character.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="relic.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

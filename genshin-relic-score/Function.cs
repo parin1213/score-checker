@@ -119,7 +119,8 @@ namespace genshin_relic_score
 #endif
                 }
 
-                setRelic(body, relic, word_list, relicSubStatusList);
+                var hasMultipleRelic = multipleRelicSubStatusList.Skip(1).Any();
+                setRelic(body, relic, word_list, relicSubStatusList, hasMultipleRelic);
 
                 //------------------------------
                 // ハッシュ値
@@ -135,7 +136,12 @@ namespace genshin_relic_score
                         var extendBody = new ResponseRelicData();
                         extendBody.word_list = word_list.ToList();
 
-                        setRelic(extendBody, relic, word_list, extendRelicSubStatusList.ToList());
+                        setRelic(
+                            extendBody, 
+                            relic, 
+                            word_list, 
+                            extendRelicSubStatusList.ToList(), 
+                            hasMultipleRelic);
                         extendRelic.Add(extendBody);
                     }
 
@@ -177,7 +183,12 @@ namespace genshin_relic_score
             return response;
         }
 
-        private static void setRelic(ResponseRelicData body, Relic relic, IEnumerable<RelicWord> word_list, List<Status> relicSubStatusList)
+        private static void setRelic(
+            ResponseRelicData body, 
+            Relic relic, 
+            IEnumerable<RelicWord> word_list, 
+            List<Status> relicSubStatusList,
+            bool hasMultipleRelic)
         {
             //------------------------------
             // スコア計算
@@ -199,19 +210,25 @@ namespace genshin_relic_score
             //------------------------------
             // 部位
             //------------------------------
-            var category = relic.getCategory(word_list);
+            var category = relic.getCategory(word_list, relicSubStatusList);
             body.category = category;
 
             //------------------------------
             // 聖遺物セット
             //------------------------------
-            var set = relic.getSetName(word_list);
+            var set = relic.getSetName(word_list, relicSubStatusList);
             body.set = set;
+
+            //------------------------------
+            // 聖遺物セット
+            //------------------------------
+            var character = relic.getCharacterName(word_list, relicSubStatusList);
+            body.character = character;
 
             //------------------------------
             // 切抜箇所
             //------------------------------
-            var cropHint = relic.getCropHint(body);
+            var cropHint = relic.getCropHint(body, hasMultipleRelic);
             body.cropHint = cropHint;
         }
 

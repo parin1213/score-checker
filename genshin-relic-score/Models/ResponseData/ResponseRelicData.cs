@@ -12,6 +12,7 @@ namespace genshin.relic.score.Models.ResponseData
     public class ResponseRelicData :IEquatable<ResponseRelicData>
     {
         public string RelicMD5 { get; set; }
+
         public List<RelicWord> word_list { get; set; }
 
         public string score { get; set; }
@@ -23,6 +24,8 @@ namespace genshin.relic.score.Models.ResponseData
         public string category { get; set; }
 
         public string set { get; set; }
+
+        public string character { get; set; }
 
         public string? StackTrace { get; set; }
 
@@ -52,6 +55,10 @@ namespace genshin.relic.score.Models.ResponseData
         public bool more { get; set; }
 
         public bool showDot { get; set; }
+
+        public bool childRelic { get; set; }
+
+        public string parentMD5 { get; set; }
 #endif
         public override string ToString()
         {

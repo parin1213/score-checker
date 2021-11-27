@@ -18,6 +18,7 @@ namespace genshin.relic.score.Models.Recognize
         const string scretPath = @"./gcp.json";
         public byte[] imageBinary;
         private RelicKind[] relicKind;
+        private Character[] characters;
         private TextAnnotation text = null;
         public Relic(byte[] imageBinary)
         {
@@ -32,6 +33,7 @@ namespace genshin.relic.score.Models.Recognize
             Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", scretPath);
 
             relicKind = JsonConvert.DeserializeObject<RelicKind[]>(File.ReadAllText("./relic.json", Encoding.UTF8));
+            characters = JsonConvert.DeserializeObject<Character[]>(File.ReadAllText("./character.json", Encoding.UTF8));
         }
 
         public IEnumerable<RelicWord> detectWords_fallback()
@@ -497,10 +499,23 @@ namespace genshin.relic.score.Models.Recognize
             return mainStatus.ToList();
         }
 
-        public string getCategory(IEnumerable<RelicWord> lines)
+        public string getCategory(IEnumerable<RelicWord> lines, List<Status> relicSubStatusList)
         {
+            var rect = Rectangle.Empty;
+            if (relicSubStatusList.Any())
+            {
+                rect = relicSubStatusList
+                            .Select(s => s.rect)
+                            .Aggregate((r1, r2) => Rectangle.Union(r1, r2));
+            }
+
             var categories = relicKind.Select(r => r.category).Distinct();
-            var category = categories.Where(c => lines.Where(l => l.text.Contains(c)).Any()).FirstOrDefault();
+            var cList = lines
+                .Select(s => (category: categories.Where(category => s.text.Contains(category)).FirstOrDefault(), line: s))
+                .Where(t => t.category != null)
+                .OrderBy(t => t.line.rect.Location.Distance(rect.Location));
+            
+            var category = cList.FirstOrDefault().category;
 
             if (category == null)
             {
@@ -512,14 +527,23 @@ namespace genshin.relic.score.Models.Recognize
             return category ?? "";
         }
 
-        public string getSetName(IEnumerable<RelicWord> lines)
+        public string getSetName(IEnumerable<RelicWord> lines, List<Status> relicSubStatusList)
         {
+            var rect = Rectangle.Empty;
+            if (relicSubStatusList.Any())
+            {
+                rect = relicSubStatusList
+                            .Select(s => s.rect)
+                            .Aggregate((r1, r2) => Rectangle.Union(r1, r2));
+            }
 
-            var setName = relicKind.Select(r => r.set)
-                                   .Distinct()
-                                   .Where(r => lines.Where(l => l.text.Contains(r)).Any())
-                                   .Select(r => r)
-                                   .FirstOrDefault(); 
+            var sets = relicKind.Select(r => r.set).Distinct().Reverse();
+            var sList = lines
+                .Select(s => (set: sets.Where(set => s.text.Contains(set)).FirstOrDefault(), line: s))
+                .Where(t => t.set != null)
+                .OrderBy(t => t.line.rect.Location.Distance(rect.Location));
+
+            var setName = sList.FirstOrDefault().set;
 
             if (setName == null)
             {
@@ -529,6 +553,27 @@ namespace genshin.relic.score.Models.Recognize
             }
 
             return setName ?? "";
+        }
+
+        public string getCharacterName(IEnumerable<RelicWord> lines, List<Status> relicSubStatusList)
+        {
+            var rect = Rectangle.Empty;
+            if (relicSubStatusList.Any())
+            {
+                rect = relicSubStatusList
+                            .Select(s => s.rect)
+                            .Aggregate((r1, r2) => Rectangle.Union(r1, r2));
+            }
+
+            var sets = characters.Select(c => c.character);
+            var sList = lines
+                .Select(s => (character: sets.Where(character => s.text.Contains(character)).FirstOrDefault(), line: s))
+                .Where(t => t.character != null)
+                .OrderBy(t => t.line.rect.Location.Distance(rect.Location));
+
+            var characterName = sList.FirstOrDefault().character;
+
+            return characterName ?? "";
         }
 
         public double calculateScore(List<Status> dic)
@@ -558,7 +603,7 @@ namespace genshin.relic.score.Models.Recognize
             return score;
         }
 
-        public Rectangle getCropHint(ResponseRelicData relic)
+        public Rectangle getCropHint(ResponseRelicData relic, bool hasMultipleRelic)
         {
             var rect = relic?.main_status?.rect ?? default;
             foreach (var status in relic.sub_status)
@@ -567,6 +612,7 @@ namespace genshin.relic.score.Models.Recognize
                 rect = Rectangle.Union(rect, status.rect);
             }
 
+            if (hasMultipleRelic) { return rect; }
             //int min_x = rect.X - (orgimage.Width * 5 / 100);
             int min_x = rect.X;
             if (min_x < 0) { min_x = 0; }
