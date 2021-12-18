@@ -544,5 +544,31 @@
     "baseATK": 195,
     "DEF": 628,
     "energy": 80
+  },
+  {
+    "rarity": 5,
+    "character": "荒瀧一斗",
+    "element": "岩",
+    "weapon": "両手剣",
+    "gender": "男",
+    "birthday": "6月1日",
+    "country": "稲妻",
+    "maxHP": "12,858",
+    "baseATK": 227,
+    "DEF": 959,
+    "energy": 70
+  },
+  {
+    "rarity": 4,
+    "character": "ゴロー",
+    "element": "岩",
+    "weapon": "弓",
+    "gender": "男",
+    "birthday": "5月18日",
+    "country": "稲妻",
+    "maxHP": 9570,
+    "baseATK": 183,
+    "DEF": 648,
+    "energy": 80
   }
 ]
