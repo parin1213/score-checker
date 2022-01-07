@@ -570,5 +570,31 @@
     "baseATK": 183,
     "DEF": 648,
     "energy": 80
+  },
+  {
+    "rarity": 5,
+    "character": "申鶴",
+    "element": "氷",
+    "weapon": "長柄武器",
+    "gender": "女",
+    "birthday": "3月10日",
+    "country": "璃月",
+    "maxHP": "12,993",
+    "baseATK": 304,
+    "DEF": 830,
+    "energy": 80
+  },
+  {
+    "rarity": 4,
+    "character": "雲菫",
+    "element": "岩",
+    "weapon": "長柄武器",
+    "gender": "女",
+    "birthday": "5月21日",
+    "country": "璃月",
+    "maxHP": 10657,
+    "baseATK": 191,
+    "DEF": 734,
+    "energy": 60
   }
 ]

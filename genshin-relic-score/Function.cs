@@ -87,8 +87,17 @@ namespace genshin_relic_score
                 if (word_list == null || cacheExists == false)
                 {
 #if WINFORMS
-                    word_list = Enumerable.Empty<RelicWord>();
-                    body.word_list = word_list.ToList();
+                    if (cached)
+                    {
+                        word_list = Enumerable.Empty<RelicWord>();
+                        body.word_list = word_list.ToList();
+                    }
+                    else
+                    {
+                        word_list = await relic.detectWords();
+                        body.word_list = word_list.ToList();
+
+                    }
 #else
                     word_list = await relic.detectWords();
                     body.word_list = word_list.ToList();
