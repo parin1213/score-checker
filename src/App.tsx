@@ -1,26 +1,39 @@
-import React from 'react';
-import logo from './logo.svg';
+import React, { Component } from 'react';
+import { Alert } from 'antd';
+import 'antd/dist/antd.css'
+
+import DropZone from './DropZone'
 import './App.css';
 
-function App() {
-  return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
-  );
-}
+class App extends Component {
 
+  private errorMessage : string = '';
+
+  render() {
+    // ****************************************
+    // * エラーメッセージ
+    // ****************************************
+    let alert = this.drawAlert();
+
+    return (
+          <div className="App" style={{ margin: '10px'}}>
+            {alert}
+            <DropZone onChange={this.OnChange.bind(this)}/>
+          </div>
+        );
+  }
+  OnChange(e : React.ChangeEvent<HTMLInputElement>) {
+    console.log('onChange')
+  }
+  drawAlert() {
+    let alert;
+    if (this.errorMessage) {
+      alert = <Alert type='error' 
+                      message='致命的なエラー'
+                      description={this.errorMessage} 
+                      showIcon closable/>
+    }
+    return alert;
+  }
+}
 export default App;
