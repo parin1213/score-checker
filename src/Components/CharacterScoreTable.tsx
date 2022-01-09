@@ -27,7 +27,7 @@ export default class CharacterScoreTable extends React.Component<ICharacterScore
                         expandedRowRender: this.drawRelicByCharacter, 
                         expandRowByClick: true
                     }} 
-                rowKey={record => record.relic[0].RelicMD5}/>
+                rowKey={record => record?.relic[0]?.RelicMD5 || (new Date()).toString()}/>
   }
 
   drawRelicByCharacter(character: CharacterScore) {
