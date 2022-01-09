@@ -1,14 +1,18 @@
 import React, { Component } from 'react';
-import { Alert, Divider, Space, Switch } from 'antd';
+import { Alert, Button, Col, Divider, InputNumber, Modal, Row, Select, Space, Switch } from 'antd';
 import { message } from 'antd';
+import Checkbox from 'antd/lib/checkbox/Checkbox';
+
+import { CaretDownOutlined, CaretRightOutlined } from '@ant-design/icons';
 import 'antd/dist/antd.css'
 
 import DropZone from './Components/DropZone'
 import RelicCard from './Components/RelicCard';
 import CharacterScoreTable from './Components/CharacterScoreTable';
 import ResponseRelicData, { blobToBase64, MD5, toCropImage, toRecognizeRect, toRectangleObject } from './Models/relic';
-import './App.css';
 import { RelicDatabase } from './Components/BrowserStorage';
+import FilterOptions from './Models/FilterOptions';
+import './App.css';
 
 interface IAppProps { }
 interface IAppState {
@@ -17,6 +21,8 @@ interface IAppState {
   percent?: number;
   list?: ResponseRelicData[];
   showCharacter?: boolean;
+  filterOptions?: FilterOptions;
+  doFilterOpen?: boolean;
 }
 
 class App extends Component<IAppProps, IAppState> {
@@ -26,6 +32,8 @@ class App extends Component<IAppProps, IAppState> {
   private percent: number = 0;
   private list: ResponseRelicData[] = [];
   private showCharacter = false;
+  private filterOptions = new FilterOptions();
+  private doFilterOpen = false;
 
   constructor(props: IAppProps) {
     super(props);
@@ -39,6 +47,8 @@ class App extends Component<IAppProps, IAppState> {
       percent: this.percent,
       list: this.list,
       showCharacter: this.showCharacter,
+      filterOptions: this.filterOptions,
+      doFilterOpen: this.doFilterOpen,
     }
   }
 
@@ -53,10 +63,10 @@ class App extends Component<IAppProps, IAppState> {
         <CharacterScoreTable list={this.state.list} key={'charactorTable'}></CharacterScoreTable>
         :
         <Space align='start' wrap={true} direction={'horizontal'}>
-          <RelicCard list={this.state.list}
+          <RelicCard list={this.getFilterList(this.state.list!)}
             percent={this.state.percent}
             loadingCounter={this.state.loadingCounter}
-            onRemove={(relic) => { console.log(relic.RelicMD5); }}
+            onRemove={(relic) => { this.onRemove(relic); }}
             onAuth={(relic) => { console.log(relic.RelicMD5); }}
             key={'RelicCard'} />
         </Space>
@@ -66,6 +76,7 @@ class App extends Component<IAppProps, IAppState> {
         <h1 style={{ textAlign: 'center' }}>聖遺物スコアチェッカー</h1>
         {alert}
         <DropZone onChange={this.OnChange.bind(this)} />
+        {this.drawFilterOptions()}
         <Divider orientation='left' style={{ fontWeight: 'bold' }}>聖遺物</Divider>
         <div>
           <Switch checked={this.state.showCharacter}
@@ -76,6 +87,20 @@ class App extends Component<IAppProps, IAppState> {
           キャラクター別スコア
         </div>
         {drawTable}
+        <Divider orientation="left" style={{ fontWeight: 'bold' }}>ツール</Divider>
+        <div>
+          <Row justify="start" style={{ flexWrap: 'wrap', paddingBottom: '1rem' }}>
+            <Col span={"24"}>
+              <Button type='primary' disabled={!this.state.list?.length}
+                onClick={() => { this.AllOpenClose(); }}>
+                {
+                  !this.Flat(this.state.list!).every(r => r.more)
+                    ? "すべて開く" : "すべて閉じる"
+                }
+              </Button>
+            </Col>
+          </Row>
+        </div>
       </div>
     );
   }
@@ -84,6 +109,27 @@ class App extends Component<IAppProps, IAppState> {
     let list = await this.onLoad();
     this.list = this.list.concat(list);
     this.setState({ list: this.list });
+  }
+
+  private AllOpenClose() {
+    let flat = this.Flat(this.state.list!);
+    var more = !flat.every(r => r.more);
+    flat.forEach(r => r.more = more);
+    this.setState({});
+  }
+
+  onRemove(relic: ResponseRelicData) {
+    Modal.confirm({
+      content: '削除しますか？',
+      title: '削除すると元に戻せません！！',
+      okCancel: true,
+      type: 'warning',
+      onOk: () => {
+        RelicDatabase.removeRelicDB(relic);
+        this.list = this.list.filter(r => r.RelicMD5 !== relic.RelicMD5);
+        this.setState({ list: this.list });
+      }
+    })
   }
 
   async OnChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -206,7 +252,7 @@ class App extends Component<IAppProps, IAppState> {
 
   async onLoad() {
     let list = await RelicDatabase.loadRelicDB() as ResponseRelicData[];
-    for (let r of list.flatMap(r => r.extendRelic ? [r].concat(r.extendRelic) : [r])) {
+    for (let r of this.Flat(this.state.list!)) {
       r.more = false;
       r.showDot = false;
     }
@@ -224,6 +270,41 @@ class App extends Component<IAppProps, IAppState> {
     }
   }
 
+  Flat(list: ResponseRelicData[]): ResponseRelicData[] {
+    return list.flatMap(r => r.extendRelic ? [r].concat(r.extendRelic) : [r]);
+  }
+
+  getFilterList(list: ResponseRelicData[]): ResponseRelicData[] {
+    list = this.Flat(list);
+
+    // score
+    if (this.filterOptions.enableScore)
+      list = list.filter(r => this.filterOptions.Socre <= parseFloat(r.score));
+
+    // set
+    if (this.filterOptions.enableSet && this.filterOptions.Set !== '')
+      list = list.filter(r => r.set === this.filterOptions.Set);
+
+    // category
+    if (this.filterOptions.enableCategory && this.filterOptions.Category !== '')
+      list = list.filter(r => r.category === this.filterOptions.Category);
+
+    // main_status
+    if (this.filterOptions.enableMainStatus && this.filterOptions.MainStatus !== '')
+      list = list.filter(r => r.main_status.pair.Key === this.filterOptions.MainStatus);
+
+    // sub_status
+    if (this.filterOptions.enableSubStatus && (this.filterOptions.SubStatus?.length !== 0))
+      list = list.filter(r => this.filterOptions.SubStatus.every(s => r.sub_status.map(s => s?.pair?.Key).includes(s)));
+
+    // character
+    if (this.filterOptions.enableCharacter && this.filterOptions.Character !== '')
+      list = list.filter(r => r.character === this.filterOptions.Character);
+
+    list.sort((left, right) => parseFloat(right.score) - parseFloat(left.score))
+    return list;
+  }
+
   drawAlert() {
     let alert;
     if (this.errorMessage) {
@@ -233,6 +314,177 @@ class App extends Component<IAppProps, IAppState> {
         showIcon closable />
     }
     return alert;
+  }
+
+  drawFilterOptions() {
+    return (
+      <>
+        <div onClick={() => { this.doFilterOpen = !this.state.doFilterOpen; this.setState({ doFilterOpen: this.doFilterOpen }) }} style={{ cursor: 'pointer' }}>
+          <Divider orientation="left"
+            style={{ fontWeight: 'bold', display: 'inline-flex' }}>
+            {
+              (this.state.doFilterOpen && this.state.showCharacter === false) ?
+                <CaretDownOutlined />
+                :
+                <CaretRightOutlined />
+            }
+            検索フィルタ
+          </Divider>
+        </div>
+        {
+          this.state.doFilterOpen ?
+            <>
+              <Row style={{ flexWrap: 'wrap' }}><Col><Space>
+                <Space>
+                  <Checkbox
+                    defaultChecked={this.state.filterOptions?.enableScore}
+                    onChange={(e) => {
+                      this.filterOptions.enableScore = e.target.checked;
+                      this.setState({ filterOptions: this.filterOptions });
+                    }} />
+                </Space>
+                <Space>スコア：</Space>
+                <Space>
+                  <InputNumber
+                    min={0}
+                    max={Math.max(...this.Flat(this.state.list!).map(r => parseFloat(r.score)))}
+                    defaultValue={this.state.filterOptions?.Socre}
+                    onChange={
+                      (value) => {
+                        this.filterOptions.Socre = value;
+                        this.setState({ filterOptions: this.filterOptions, list: this.list })
+                      }}>
+                  </InputNumber>
+                </Space>
+              </Space></Col></Row>
+              <Row><Col><Space>
+                <Space>
+                  <Checkbox
+                    defaultChecked={this.state.filterOptions?.enableSet}
+                    onChange={(e) => {
+                      this.filterOptions.enableSet = e.target.checked;
+                      this.setState({ filterOptions: this.filterOptions });
+                    }} />
+                </Space>
+                <Space>聖遺物セット：</Space>
+                <Space>
+                  <Select style={{ width: '160px' }}
+                    onSelect={
+                      (value: string) => {
+                        this.filterOptions.Set = value;
+                        this.setState({ filterOptions: this.filterOptions, list: this.list })
+                      }}>
+                    {Array.from(
+                      (new Set(this.Flat(this.list).map(r => r.set).concat([""]))))
+                      .sort((a, b) => a.localeCompare(b))
+                      .map(set => <Select.Option value={set}> {set} </Select.Option>)}
+                  </Select>
+                </Space>
+              </Space></Col></Row>
+              <Row><Col><Space>
+                <Space>
+                  <Checkbox
+                    defaultChecked={this.state.filterOptions?.enableCategory}
+                    onChange={(e) => {
+                      this.filterOptions.enableCategory = e.target.checked;
+                      this.setState({ filterOptions: this.filterOptions });
+                    }} />
+                </Space>
+                <Space>部位：</Space>
+                <Space>
+                  <Select style={{ width: '160px' }}
+                    onSelect={
+                      (value: string) => {
+                        this.filterOptions.Category = value;
+                        this.setState({ filterOptions: this.filterOptions, list: this.list })
+                      }}>
+                    {Array.from(
+                      (new Set(this.Flat(this.list).map(r => r.category).concat([""]))))
+                      .sort((a, b) => a.localeCompare(b))
+                      .map(category => <Select.Option value={category}> {category} </Select.Option>)}
+                  </Select>
+                </Space>
+              </Space></Col></Row>
+              <Row><Col><Space>
+                <Space>
+                  <Checkbox
+                    defaultChecked={this.state.filterOptions?.enableMainStatus}
+                    onChange={(e) => {
+                      this.filterOptions.enableMainStatus = e.target.checked;
+                      this.setState({ filterOptions: this.filterOptions });
+                    }} />
+                </Space>
+                <Space>メインステータス：</Space>
+                <Space>
+                  <Select style={{ width: '160px' }}
+                    onSelect={
+                      (value: string) => {
+                        this.filterOptions.MainStatus = value;
+                        this.setState({ filterOptions: this.filterOptions, list: this.list })
+                      }}>
+                    {Array.from(
+                      (new Set(this.Flat(this.list).map(r => r.main_status.pair.Key).concat([""]))))
+                      .sort((a, b) => a.localeCompare(b))
+                      .map(MainStatus => <Select.Option value={MainStatus}> {MainStatus} </Select.Option>)}
+                  </Select>
+                </Space>
+              </Space></Col></Row>
+              <Row><Col><Space>
+                <Space>
+                  <Checkbox
+                    defaultChecked={this.state.filterOptions?.enableSubStatus}
+                    onChange={(e) => {
+                      this.filterOptions.enableSubStatus = e.target.checked;
+                      this.setState({ filterOptions: this.filterOptions });
+                    }} />
+                </Space>
+                <Space>サブステータス：</Space>
+                <Space>
+                  <Select style={{ width: '300px' }}
+                    mode='multiple' allowClear
+                    optionLabelProp='label'
+                    onChange={
+                      (value: string[]) => {
+                        this.filterOptions.SubStatus = value;
+                        this.setState({ filterOptions: this.filterOptions, list: this.list })
+                      }}>
+                    {Array.from(
+                      (new Set(this.Flat(this.list).flatMap(r => r.sub_status).map(s => s.pair.Key).concat([""]))))
+                      .sort((a, b) => a.localeCompare(b))
+                      .map(SubStatus => <Select.Option value={SubStatus} label={SubStatus}> {SubStatus} </Select.Option>)}
+                  </Select>
+                </Space>
+              </Space></Col></Row>
+              <Row><Col><Space>
+                <Space>
+                  <Checkbox
+                    defaultChecked={this.state.filterOptions?.enableCharacter}
+                    onChange={(e) => {
+                      this.filterOptions.enableCharacter = e.target.checked;
+                      this.setState({ filterOptions: this.filterOptions });
+                    }} />
+                </Space>
+                <Space>装備キャラクター：</Space>
+                <Space>
+                  <Select style={{ width: '160px' }}
+                    onSelect={
+                      (value: string) => {
+                        this.filterOptions.Character = value;
+                        this.setState({ filterOptions: this.filterOptions, list: this.list })
+                      }}>
+                    {Array.from(
+                      (new Set(this.Flat(this.list).map(r => r.character).concat([""]))))
+                      .sort((a, b) => a.localeCompare(b))
+                      .map(Character => <Select.Option value={Character}> {Character} </Select.Option>)}
+                  </Select>
+                </Space>
+              </Space></Col></Row>
+            </>
+            :
+            undefined
+        }
+      </>
+    )
   }
 }
 export default App;

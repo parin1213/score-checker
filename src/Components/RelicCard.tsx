@@ -39,11 +39,6 @@ export default class RelicCard extends React.Component<IRelicCardProps, IRelicCa
         </>;
     }
 
-    getFilterList(list: ResponseRelicData[]): ResponseRelicData[] {
-        list = list.flatMap(r => r.extendRelic ? [r].concat(r.extendRelic) : [r]);
-        return list;
-    }
-
     private getEmpty() {
         if (!this.props.list?.length && !this.props.loadingCounter) {
             return <Empty />
@@ -52,7 +47,7 @@ export default class RelicCard extends React.Component<IRelicCardProps, IRelicCa
 
     private getRelicCard() {
         let cards: any[] = [];
-        for (let relic of this.getFilterList(this.props.list!)) {
+        for (let relic of this.props.list!) {
             let cardHeight = relic?.more ? '800px' : 'auto';
             if (!relic.src) { relic.src = "./noimage.png"; }
             let cover =
