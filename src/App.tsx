@@ -2,13 +2,13 @@ import React, { Component } from 'react';
 import { Alert, Divider, Space, Switch } from 'antd';
 import { message } from 'antd';
 import 'antd/dist/antd.css'
-import md5 from 'js-md5';
 
 import DropZone from './Components/DropZone'
 import RelicCard from './Components/RelicCard';
 import CharacterScoreTable from './Components/CharacterScoreTable';
-import ResponseRelicData, { Rectangle, toRectangleObject } from './Models/relic';
+import ResponseRelicData, { blobToBase64, MD5, toCropImage, toRecognizeRect, toRectangleObject } from './Models/relic';
 import './App.css';
+import { RelicDatabase } from './Components/BrowserStorage';
 
 interface IAppProps { }
 interface IAppState {
@@ -29,6 +29,7 @@ class App extends Component<IAppProps, IAppState> {
 
   constructor(props: IAppProps) {
     super(props);
+
     // ****************************************
     // * パラメタ初期化
     // ****************************************
@@ -49,14 +50,15 @@ class App extends Component<IAppProps, IAppState> {
     let alert = this.drawAlert();
     let drawTable =
       this.state.showCharacter ?
-        <CharacterScoreTable list={this.state.list}></CharacterScoreTable>
+        <CharacterScoreTable list={this.state.list} key={'charactorTable'}></CharacterScoreTable>
         :
         <Space align='start' wrap={true} direction={'horizontal'}>
           <RelicCard list={this.state.list}
             percent={this.state.percent}
             loadingCounter={this.state.loadingCounter}
             onRemove={(relic) => { console.log(relic.RelicMD5); }}
-            onAuth={(relic) => { console.log(relic.RelicMD5); }} />
+            onAuth={(relic) => { console.log(relic.RelicMD5); }}
+            key={'RelicCard'} />
         </Space>
 
     return (
@@ -76,6 +78,12 @@ class App extends Component<IAppProps, IAppState> {
         {drawTable}
       </div>
     );
+  }
+
+  async componentDidMount() {
+    let list = await this.onLoad();
+    this.list = this.list.concat(list);
+    this.setState({ list: this.list });
   }
 
   async OnChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -107,28 +115,40 @@ class App extends Component<IAppProps, IAppState> {
       this.setState({ loadingCounter: this.loadingCounter, percent: this.percent });
 
     }
+    this.onSave();
   }
 
   async getFile(file: File, maxAllowedSize: number) {
     try {
 
-      let src = await this.blobToBase64(file);
+      let src = await blobToBase64(file);
       let base64: string = src.split(',')[1];
-      let md5 = this.MD5(base64);
+      let md5 = MD5(base64);
 
       if (this.state.list?.some(r => r.RelicMD5 === md5)) {
         message.info("既にスコアリング済みです。");
         return;
       }
       let relic = await this.calclateScore(src, file.type);
-      relic.src = await this.toCropImage(src, toRectangleObject(relic.cropHint));
-      relic.src = await this.toRecognizeRect(src, toRectangleObject(relic.cropHint), toRectangleObject(relic.main_status.rect), relic.sub_status.map(s => toRectangleObject(s.rect)));
+      relic.src = await toCropImage(src, toRectangleObject(relic?.cropHint));
+      relic.src = await toRecognizeRect(src, toRectangleObject(relic?.cropHint), toRectangleObject(relic?.main_status?.rect), relic.sub_status.map(s => toRectangleObject(s?.rect)));
+
+      relic.showDot = true;
+      if (relic.extendRelic != null) {
+        for (let exRelic of relic.extendRelic) {
+          exRelic.src = await toCropImage(src, toRectangleObject(exRelic.cropHint));
+          exRelic.src = await toRecognizeRect(src, toRectangleObject(exRelic?.cropHint), toRectangleObject(exRelic?.main_status?.rect), exRelic.sub_status?.map(s => toRectangleObject(s?.rect)));
+          let md5 = exRelic.src.split(",")[1] || '';
+          exRelic.RelicMD5 = MD5(md5);
+          exRelic.showDot = true;
+          exRelic.childRelic = true;
+          exRelic.parentMD5 = relic.RelicMD5;
+        }
+      }
 
       this.list.push(relic);
       this.percent = 100;
       this.setState({ list: this.list, percent: this.percent });
-
-      console.log(relic);
     }
     catch (e: any) {
       let NewLine = "\n";
@@ -184,104 +204,24 @@ class App extends Component<IAppProps, IAppState> {
     return _relic;
   }
 
-  async toCropImage(src: string, rect: Rectangle) {
-
-    if (rect.X === 0 && rect.Y === 0 && rect.Width === 0 && rect.Height === 0) {
-      return src;
+  async onLoad() {
+    let list = await RelicDatabase.loadRelicDB() as ResponseRelicData[];
+    for (let r of list.flatMap(r => r.extendRelic ? [r].concat(r.extendRelic) : [r])) {
+      r.more = false;
+      r.showDot = false;
     }
 
-    // 画像オブジェクトを生成
-    let img = await this.createImage(src);
-
-    // 描画範囲の伸長
-    rect.X -= img.width * 5 / 100;
-    rect.Y -= img.height * 5 / 100;
-    rect.Width += (img.width * 5 / 100) * 2;
-    rect.Height += (img.height * 5 / 100) * 2;
-
-
-    // canvas オブジェクト生成
-    let canvas = document.createElement('canvas');
-
-    // canvasの大きさを設定
-    canvas.width = rect.Width;
-    canvas.height = rect.Height;
-
-    // 画像の切り抜き
-    const ctx = canvas.getContext('2d')!;
-    ctx.drawImage(img, rect.X, rect.Y, rect.Width, rect.Height, 0, 0, rect.Width, rect.Height);
-
-    // base64エンコード
-    return canvas.toDataURL();;
+    return list;
   }
 
-  async toRecognizeRect(src: string, rect: Rectangle, mainRect: Rectangle, subRects: Rectangle[]) {
-    if (rect.X === 0 && rect.Y === 0 && rect.Width === 0 && rect.Height === 0) {
-      return src;
+  onSave() {
+    if (!this.list || !this.list.length) return;
+    try {
+      RelicDatabase.saveRelicDB(this.list);
+    } catch (e) {
+      message.error("キャッシュ保存に失敗しました");
+      console.error(`キャッシュ保存に失敗: ${e}`);
     }
-
-    // 画像オブジェクトを生成
-    let img = await this.createImage(src);
-
-    // 描画範囲の伸長
-    rect.X -= img.width * 5 / 100;
-    rect.Y -= img.height * 5 / 100;
-    rect.Width += (img.width * 5 / 100) * 2;
-    rect.Height += (img.height * 5 / 100) * 2;
-
-
-    // canvas オブジェクト生成
-    let canvas = document.createElement('canvas');
-
-    // canvasの大きさを設定
-    canvas.width = img.width;
-    canvas.height = img.height;
-
-    // 画像の描画
-    const ctx = canvas.getContext('2d')!;
-    ctx.drawImage(img, 0, 0, img.width, img.height);
-
-    // 認識範囲の描画
-    ctx.strokeStyle = "lightgreen";
-    ctx.lineWidth = (rect.Width + rect.Height) / 2 * 1 / 100;
-    ctx.strokeRect(mainRect.X, mainRect.Y, mainRect.Width, mainRect.Height);
-    for (const r of subRects) {
-      ctx.strokeRect(r.X, r.Y, r.Width, r.Height);
-    }
-
-    // 切り抜き
-    return await this.toCropImage(canvas.toDataURL(), rect);
-
-  }
-
-  createImage(src: string): Promise<HTMLImageElement> {
-
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = (e) => reject(e);
-      img.src = src;
-    })
-  }
-
-
-  MD5(base64String: string): string {
-    const binary_string = window.atob(base64String);
-    const len = binary_string.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) {
-      bytes[i] = binary_string.charCodeAt(i);
-    }
-
-    return md5(bytes).toUpperCase();
-  }
-
-  blobToBase64(blob: Blob): Promise<string> {
-    return new Promise((resolve, _) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result?.toString() || "");
-      reader.readAsDataURL(blob);
-    });
   }
 
   drawAlert() {

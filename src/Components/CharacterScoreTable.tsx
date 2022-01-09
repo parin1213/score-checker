@@ -10,7 +10,9 @@ interface ICharacterScoreTableProps {
     list?: ResponseRelicData[],
 }
 interface ICharacterScoreTableState { }
+
 export default class CharacterScoreTable extends React.Component<ICharacterScoreTableProps, ICharacterScoreTableState> {
+
     public render() {
         let tableList = this.toTableList();
 
@@ -44,8 +46,9 @@ export default class CharacterScoreTable extends React.Component<ICharacterScore
             { title: 'サブステータス4', dataIndex: ['sub_status', '3'], render: statusRender },
         ]
 
-        return <Table columns={columns} dataSource={character.relic} pagination={false} />
+        return <Table columns={columns} dataSource={character.relic} pagination={character.Name === 'その他' ? undefined : false} />
     }
+
     toTableList(): CharacterScore[] {
         let other: CharacterScore =
         {

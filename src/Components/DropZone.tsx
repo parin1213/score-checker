@@ -5,6 +5,7 @@ import '../App.css';
 
 interface IDropZoneProps { onChange: React.ChangeEventHandler<HTMLInputElement> }
 interface IDropZoneState { dropZoneElementClassList?: string }
+
 export default class DropZone extends React.Component<IDropZoneProps, IDropZoneState> {
   private dropZoneElementClassList: string[] = [];
   private inputFile: React.RefObject<HTMLInputElement>;
@@ -20,6 +21,7 @@ export default class DropZone extends React.Component<IDropZoneProps, IDropZoneS
     }
 
   }
+
   public render() {
     return <div className={this.state.dropZoneElementClassList}
       style={{ border: 'dashed 5px #ccc', padding: '2em', textAlign: 'center' }}
@@ -58,7 +60,6 @@ export default class DropZone extends React.Component<IDropZoneProps, IDropZoneS
     this.setState({ dropZoneElementClassList: this.dropZoneElementClassList.join(' ') || "" })
   }
 
-  // Handle the paste and drop events
   private onDrop(e: React.DragEvent<HTMLDivElement>) {
     e.preventDefault();
     let index = this.dropZoneElementClassList.indexOf('hover');

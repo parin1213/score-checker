@@ -28,6 +28,7 @@ export default class RelicCard extends React.Component<IRelicCardProps, IRelicCa
             imagePopupSrc: this.imagePopupSrc,
         }
     }
+
     render(): React.ReactNode {
         return <>
             {this.getEmpty()}
@@ -78,11 +79,11 @@ export default class RelicCard extends React.Component<IRelicCardProps, IRelicCa
                     <Card.Grid style={{ width: '50%', height: '6em', textAlign: 'center', paddingLeft: 0, paddingRight: 0 }}>
                         {StatustoSring(relic.main_status)}
                     </Card.Grid>
-                    <Card.Grid style={{ width: '50%', height: '12em', textAlign: 'center', paddingLeft: 0, paddingRight: 0 }}>
+                    <Card.Grid style={{ width: '50%', height: '12em', textAlign: 'center', paddingLeft: 0, paddingRight: 0 }} key={`sub_statusTitle_${relic.RelicMD5}`}>
                         サブ<br /> ステータス
                     </Card.Grid>
-                    <Card.Grid style={{ width: '50%', height: '12em', textAlign: 'center', paddingLeft: 0, paddingRight: 0 }}>
-                        {relic.sub_status?.map(s => <>{StatustoSring(s)}<br /></>)}
+                    <Card.Grid style={{ width: '50%', height: '12em', textAlign: 'center', paddingLeft: 0, paddingRight: 0 }} key={`sub_status_${relic.RelicMD5}`}>
+                        {relic.sub_status?.map((s, i) => <div key={i}>{StatustoSring(s)}<br /></div>)}
                     </Card.Grid>
                     {relic?.character ? relic?.character + "装備済" : undefined}
                 </>
@@ -91,20 +92,17 @@ export default class RelicCard extends React.Component<IRelicCardProps, IRelicCa
                 <ShareAltOutlined key='shareAlt' onClick={(e) => { e.preventDefault(); this.props.onAuth(relic); }} />,
             ]
             let card =
-                <>
-                    <Badge dot={relic.showDot}>
-                        <Card hoverable
-                            bordered={true}
-                            style={{ width: '250px', height: cardHeight, maxHeight: '800px', textAlign: 'center' }}
-                            cover={cover}
-                            title={title}
-                            extra={extra}
-                            actions={actions}
-                        >
-                            {relic.more ? body : undefined}
-                        </Card>
-                    </Badge>
-                </>
+                <Badge dot={relic.showDot} key={`card_${relic.RelicMD5}`}>
+                    <Card hoverable
+                        bordered={true}
+                        style={{ width: '250px', height: cardHeight, maxHeight: '800px', textAlign: 'center' }}
+                        cover={cover}
+                        title={title}
+                        extra={extra}
+                        actions={actions}>
+                        {relic.more ? body : undefined}
+                    </Card>
+                </Badge>
 
             cards.push(card);
         }
@@ -116,15 +114,13 @@ export default class RelicCard extends React.Component<IRelicCardProps, IRelicCa
         let cards: any[] = [];
         for (let i = 0; i < (this.props.loadingCounter || 0); i++) {
             let card =
-                <>
-                    <Card bordered loading style={{ width: '250px' }}
-                        title={!i ? <Progress percent={this.props.percent} showInfo={false} /> : <Rate disabled defaultValue={0} />}
-                    >
-                        <p>
-                            <div className='h6'></div>
-                        </p>
-                    </Card>
-                </>
+                <Card bordered loading style={{ width: '250px' }}
+                    title={!i ? <Progress percent={this.props.percent} showInfo={false} /> : <Rate disabled defaultValue={0} />}
+                    key={`loadingCard${i}`}>
+                    <p>
+                        <div className='h6'></div>
+                    </p>
+                </Card>
 
             cards.push(card);
         }
