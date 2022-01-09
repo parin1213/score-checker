@@ -21,11 +21,14 @@ export default class RelicCard extends React.Component<IRelicCardProps, IRelicCa
 
     imagePopupSrc: string = "";
 
-    render(): React.ReactNode {
+    constructor(props: IRelicCardProps){
+        super(props);
+        
         this.state = {
             imagePopupSrc: this.imagePopupSrc,
         }
-
+    }
+    render(): React.ReactNode {
         return  <>
                     {this.getEmpty()}
                     <Space align='start' wrap={true} direction={'horizontal'}>
@@ -36,7 +39,7 @@ export default class RelicCard extends React.Component<IRelicCardProps, IRelicCa
     }
 
     getFilterList(list: ResponseRelicData[]) : ResponseRelicData[] {
-        list = list.flatMap(r =>  r.extendRelic.concat(r));
+        list = list.flatMap(r =>  r.extendRelic ? [r].concat(r.extendRelic) : [r]);
         return list;
     }
 

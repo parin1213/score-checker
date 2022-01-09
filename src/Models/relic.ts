@@ -39,11 +39,11 @@ export interface WordList {
 }
 
 export function StatustoSring(status: Status){
-    if (!status.pair.Key) { return ""; }
+    if (!status?.pair?.Key) { return ""; }
 
-    var key = status.pair.Key.replace("%", "");
-    var value = status.pair.Value.toFixed(0).toString();
-    if (status.pair.Key.includes("%")) { value = status.pair.Value.toFixed(1).toString() + "%"; }
+    var key = status?.pair?.Key?.replace("%", "");
+    var value = status?.pair?.Value?.toFixed(0)?.toString();
+    if (status?.pair?.Key?.includes("%")) { value = status?.pair?.Value?.toFixed(1)?.toString() + "%"; }
 
     return `${key}+${value}`;
 

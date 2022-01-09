@@ -26,7 +26,9 @@ class App extends Component<IAppProps, IAppState> {
   private percent: number = 0;
   private list : ResponseRelicData[] = [];
   private showCharacter = false;
-  render() {
+
+  constructor(props: IAppProps) {
+    super(props);
     // ****************************************
     // * パラメタ初期化
     // ****************************************
@@ -37,6 +39,9 @@ class App extends Component<IAppProps, IAppState> {
       list: this.list,
       showCharacter: this.showCharacter,
     }
+  }
+
+  render() {
 
     // ****************************************
     // * エラーメッセージ
@@ -185,7 +190,7 @@ class App extends Component<IAppProps, IAppState> {
 
   async toCropImage(src:string, rect:Rectangle) {
 
-    if (rect.X == 0 && rect.Y == 0 && rect.Width == 0 && rect.Height == 0)
+    if (rect.X === 0 && rect.Y === 0 && rect.Width === 0 && rect.Height === 0)
     {
         return src;
     }
@@ -216,7 +221,7 @@ class App extends Component<IAppProps, IAppState> {
 }
 
   async toRecognizeRect(src:string, rect:Rectangle, mainRect:Rectangle, subRects: Rectangle[]) {
-    if (rect.X == 0 && rect.Y == 0 && rect.Width == 0 && rect.Height == 0) {
+    if (rect.X === 0 && rect.Y === 0 && rect.Width === 0 && rect.Height === 0) {
         return src;
     }
 
