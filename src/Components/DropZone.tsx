@@ -1,7 +1,7 @@
 import React from 'react';
 import { InboxOutlined } from '@ant-design/icons';
 import 'antd/dist/antd.css'
-import './App.css';
+import '../App.css';
 
 interface IDropZoneProps { onChange: React.ChangeEventHandler<HTMLInputElement>}
 interface IDropZoneState { dropZoneElementClassList?:string }
