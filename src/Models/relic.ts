@@ -28,6 +28,8 @@ export default interface ResponseRelicData {
 export interface Status {
     pair: Pair;
     rect: string;
+    key: string;
+    value: number;
 }
 
 export interface Pair {

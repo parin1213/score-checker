@@ -93,6 +93,7 @@ class App extends Component<IAppProps, IAppState> {
           <Switch checked={this.state.showCharacter}
             onClick={() => {
               this.showCharacter = !this.showCharacter;
+              saveLocalStorage('showCharacter', `${this.showCharacter}`);
               this.setState({ showCharacter: this.showCharacter });
             }} />
           キャラクター別スコア
@@ -117,6 +118,7 @@ class App extends Component<IAppProps, IAppState> {
   }
 
   async componentDidMount() {
+    console.log('version: React v1.1.3')
     let UserGuid = loadLocalStorage("UserGuid");
     if (!UserGuid) {
       UserGuid = uuidv4();
@@ -133,7 +135,14 @@ class App extends Component<IAppProps, IAppState> {
       this.doTweet = true;
     }
 
-    this.setState({ list: this.list, doTweet: this.doTweet, tweetRelic: this.tweetRelic });
+    this.showCharacter = JSON.parse(loadLocalStorage('showCharacter') || 'false') as boolean;
+
+    this.setState({
+      list: this.list,
+      doTweet: this.doTweet,
+      tweetRelic: this.tweetRelic,
+      showCharacter: this.showCharacter
+    });
   }
 
   private AllOpenClose() {
@@ -298,6 +307,19 @@ class App extends Component<IAppProps, IAppState> {
     for (let r of this.Flat(list!)) {
       r.more = false;
       r.showDot = false;
+
+      // Blazor => React版移植時のフォールバック実装
+      let key = r.main_status?.pair?.Key || r.main_status?.key;
+      let value = r.main_status?.pair?.Value || r.main_status?.value;
+      r.main_status.pair = { Key: key, Value: value }
+
+      for (let s of r.sub_status) {
+        let key = s?.pair?.Key || s?.key;
+        let value = s?.pair?.Value || s?.value;
+        s.pair = { Key: key, Value: value }
+      }
+
+      console.log(r)
     }
 
     return list;
@@ -418,7 +440,7 @@ class App extends Component<IAppProps, IAppState> {
                         this.setState({ filterOptions: this.filterOptions, list: this.list })
                       }}>
                     {Array.from(
-                      (new Set(this.Flat(this.list).map(r => r.set).concat([""]))))
+                      (new Set(this.Flat(this.list).map(r => r.set || '').concat([""]))))
                       .sort((a, b) => a.localeCompare(b))
                       .map(set => <Select.Option value={set}> {set} </Select.Option>)}
                   </Select>
@@ -442,7 +464,7 @@ class App extends Component<IAppProps, IAppState> {
                         this.setState({ filterOptions: this.filterOptions, list: this.list })
                       }}>
                     {Array.from(
-                      (new Set(this.Flat(this.list).map(r => r.category).concat([""]))))
+                      (new Set(this.Flat(this.list).map(r => r.category || '').concat([""]))))
                       .sort((a, b) => a.localeCompare(b))
                       .map(category => <Select.Option value={category}> {category} </Select.Option>)}
                   </Select>
@@ -466,7 +488,7 @@ class App extends Component<IAppProps, IAppState> {
                         this.setState({ filterOptions: this.filterOptions, list: this.list })
                       }}>
                     {Array.from(
-                      (new Set(this.Flat(this.list).map(r => r.main_status.pair.Key).concat([""]))))
+                      (new Set(this.Flat(this.list).map(r => r.main_status.pair.Key || '').concat([""]))))
                       .sort((a, b) => a.localeCompare(b))
                       .map(MainStatus => <Select.Option value={MainStatus}> {MainStatus} </Select.Option>)}
                   </Select>
@@ -492,7 +514,7 @@ class App extends Component<IAppProps, IAppState> {
                         this.setState({ filterOptions: this.filterOptions, list: this.list })
                       }}>
                     {Array.from(
-                      (new Set(this.Flat(this.list).flatMap(r => r.sub_status).map(s => s.pair.Key).concat([""]))))
+                      (new Set(this.Flat(this.list).flatMap(r => r.sub_status).map(s => s.pair.Key || '').concat([""]))))
                       .sort((a, b) => a.localeCompare(b))
                       .map(SubStatus => <Select.Option value={SubStatus} label={SubStatus}> {SubStatus} </Select.Option>)}
                   </Select>
@@ -516,7 +538,7 @@ class App extends Component<IAppProps, IAppState> {
                         this.setState({ filterOptions: this.filterOptions, list: this.list })
                       }}>
                     {Array.from(
-                      (new Set(this.Flat(this.list).map(r => r.character).concat([""]))))
+                      (new Set(this.Flat(this.list).map(r => r.character || '').concat([""]))))
                       .sort((a, b) => a.localeCompare(b))
                       .map(Character => <Select.Option value={Character}> {Character} </Select.Option>)}
                   </Select>
