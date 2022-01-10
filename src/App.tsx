@@ -6,13 +6,16 @@ import Checkbox from 'antd/lib/checkbox/Checkbox';
 import { CaretDownOutlined, CaretRightOutlined } from '@ant-design/icons';
 import 'antd/dist/antd.css'
 
+import { v4 as uuidv4 } from 'uuid'
+
 import DropZone from './Components/DropZone'
 import RelicCard from './Components/RelicCard';
 import CharacterScoreTable from './Components/CharacterScoreTable';
 import ResponseRelicData, { blobToBase64, MD5, toCropImage, toRecognizeRect, toRectangleObject } from './Models/relic';
-import { RelicDatabase } from './Components/BrowserStorage';
+import { loadLocalStorage, RelicDatabase, saveLocalStorage } from './Components/BrowserStorage';
 import FilterOptions from './Models/FilterOptions';
 import './App.css';
+import Tweet from './Components/tweet';
 
 interface IAppProps { }
 interface IAppState {
@@ -23,6 +26,9 @@ interface IAppState {
   showCharacter?: boolean;
   filterOptions?: FilterOptions;
   doFilterOpen?: boolean;
+  doTweet?: boolean;
+  tweetRelic?: ResponseRelicData;
+
 }
 
 class App extends Component<IAppProps, IAppState> {
@@ -34,6 +40,8 @@ class App extends Component<IAppProps, IAppState> {
   private showCharacter = false;
   private filterOptions = new FilterOptions();
   private doFilterOpen = false;
+  private doTweet = false;
+  private tweetRelic: ResponseRelicData | undefined = undefined;
 
   constructor(props: IAppProps) {
     super(props);
@@ -49,6 +57,8 @@ class App extends Component<IAppProps, IAppState> {
       showCharacter: this.showCharacter,
       filterOptions: this.filterOptions,
       doFilterOpen: this.doFilterOpen,
+      doTweet: this.doTweet,
+      tweetRelic: this.tweetRelic,
     }
   }
 
@@ -67,13 +77,14 @@ class App extends Component<IAppProps, IAppState> {
             percent={this.state.percent}
             loadingCounter={this.state.loadingCounter}
             onRemove={(relic) => { this.onRemove(relic); }}
-            onAuth={(relic) => { console.log(relic.RelicMD5); }}
+            onAuth={(relic) => { this.onAuth(relic); }}
             key={'RelicCard'} />
         </Space>
 
     return (
       <div className="App" style={{ margin: '10px' }}>
         <h1 style={{ textAlign: 'center' }}>聖遺物スコアチェッカー</h1>
+        {this.state.doTweet ? <Tweet score={this.state.tweetRelic?.score || '0'} onHide={() => { this.doTweet = false; this.setState({ doTweet: false }) }} /> : undefined}
         {alert}
         <DropZone onChange={this.OnChange.bind(this)} />
         {this.drawFilterOptions()}
@@ -106,9 +117,23 @@ class App extends Component<IAppProps, IAppState> {
   }
 
   async componentDidMount() {
+    let UserGuid = loadLocalStorage("UserGuid");
+    if (!UserGuid) {
+      UserGuid = uuidv4();
+      saveLocalStorage("UserGuid", UserGuid);
+    }
+
     let list = await this.onLoad();
     this.list = this.list.concat(list);
-    this.setState({ list: this.list });
+
+    let params = (new URL(window.location.href)).searchParams;
+    let RelicGuid = params.get('RelicGuid');
+    if (RelicGuid) {
+      this.tweetRelic = this.list.filter(r => r.RelicMD5 === RelicGuid)[0] || undefined;
+      this.doTweet = true;
+    }
+
+    this.setState({ list: this.list, doTweet: this.doTweet, tweetRelic: this.tweetRelic });
   }
 
   private AllOpenClose() {
@@ -130,6 +155,24 @@ class App extends Component<IAppProps, IAppState> {
         this.setState({ list: this.list });
       }
     })
+  }
+
+  onAuth(relic: ResponseRelicData) {
+    if (0 < this.loadingCounter) {
+      message.info('スコアリング後に実施してください');
+      return;
+    }
+
+    let UserGuid = loadLocalStorage("UserGuid");
+    let uri = 'https://api.genshin.parin1213.com/TwitterAPI';
+    uri += `?Function=oauth`;
+    uri += `&UserGuid=${UserGuid}`;
+    uri += `&RelicGuid=${relic.RelicMD5}`;
+    uri += `&RedirectURL=${window.location.origin + window.location.pathname}`;
+    uri += `&dev_mode=1`;
+
+
+    window.location.href = uri;
   }
 
   async OnChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -252,7 +295,7 @@ class App extends Component<IAppProps, IAppState> {
 
   async onLoad() {
     let list = await RelicDatabase.loadRelicDB() as ResponseRelicData[];
-    for (let r of this.Flat(this.state.list!)) {
+    for (let r of this.Flat(list!)) {
       r.more = false;
       r.showDot = false;
     }
