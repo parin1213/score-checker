@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { Alert, Button, Col, Divider, InputNumber, Modal, Row, Select, Space, Switch } from 'antd';
+import { Alert, Button, Card, Col, Divider, InputNumber, Modal, Row, Select, Space, Switch } from 'antd';
 import { message } from 'antd';
 import Checkbox from 'antd/lib/checkbox/Checkbox';
 
@@ -16,6 +16,8 @@ import { loadLocalStorage, RelicDatabase, saveLocalStorage } from './Components/
 import FilterOptions from './Models/FilterOptions';
 import './App.css';
 import Tweet from './Components/tweet';
+import Link from 'antd/lib/typography/Link';
+import { Footer } from 'antd/lib/layout/layout';
 
 interface IAppProps { }
 interface IAppState {
@@ -84,7 +86,14 @@ class App extends Component<IAppProps, IAppState> {
     return (
       <div className="App" style={{ margin: '10px' }}>
         <h1 style={{ textAlign: 'center' }}>聖遺物スコアチェッカー</h1>
-        {this.state.doTweet ? <Tweet score={this.state.tweetRelic?.score || '0'} onHide={() => { this.doTweet = false; this.setState({ doTweet: false }) }} /> : undefined}
+        {this.state.doTweet ?
+          <Tweet score={this.state.tweetRelic?.score || '0'}
+            onHide={() => {
+              this.doTweet = false;
+              this.setState({ doTweet: false })
+              window.history.pushState('', '', window.location.href);
+              window.history.replaceState('', '', '/');
+            }} /> : undefined}
         {alert}
         <DropZone onChange={this.OnChange.bind(this)} />
         {this.drawFilterOptions()}
@@ -113,12 +122,19 @@ class App extends Component<IAppProps, IAppState> {
             </Col>
           </Row>
         </div>
+        <Card size='small' style={{ padding: 0, textAlign: 'center', position: 'sticky', bottom: '0px' }}>
+          問い合わせ/不具合報告等は
+          <Link href="https://twitter.com/score_checker" target="_blank">
+            @score_checker
+          </Link>
+          までお願いいたします。
+        </Card>
       </div>
     );
   }
 
   async componentDidMount() {
-    console.log('version: React v1.1.3')
+    console.log('version: React v1.1.4')
     let UserGuid = loadLocalStorage("UserGuid");
     if (!UserGuid) {
       UserGuid = uuidv4();
