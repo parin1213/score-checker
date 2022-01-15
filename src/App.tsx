@@ -8,6 +8,8 @@ import 'antd/dist/antd.css'
 
 import { v4 as uuidv4 } from 'uuid'
 
+import imageCompression from "browser-image-compression";
+
 import DropZone from './Components/DropZone'
 import RelicCard from './Components/RelicCard';
 import CharacterScoreTable from './Components/CharacterScoreTable';
@@ -133,7 +135,7 @@ class App extends Component<IAppProps, IAppState> {
   }
 
   async componentDidMount() {
-    console.log('version: React v1.1.4')
+    console.log('version: React v1.1.5')
     let UserGuid = loadLocalStorage("UserGuid");
     if (!UserGuid) {
       UserGuid = uuidv4();
@@ -209,11 +211,11 @@ class App extends Component<IAppProps, IAppState> {
       return;
     }
     const maxAllowedSize = 5 * 1024 * 1024;
-    let hasOverAllowSizeFIle = Array.from(inputFileElement.files!).some(f => maxAllowedSize < f.size)
-    if (hasOverAllowSizeFIle) {
-      message.error(`最大サイズは${(maxAllowedSize / 1024 / 1024)}MBです。`);
-      return;
-    }
+    // let hasOverAllowSizeFIle = Array.from(inputFileElement.files!).some(f => maxAllowedSize < f.size)
+    // if (hasOverAllowSizeFIle) {
+    //   message.error(`最大サイズは${(maxAllowedSize / 1024 / 1024)}MBです。`);
+    //   return;
+    // }
 
     this.loadingCounter += inputFileElement.files!.length;
     this.setState({ loadingCounter: this.loadingCounter });
@@ -233,6 +235,13 @@ class App extends Component<IAppProps, IAppState> {
 
   async getFile(file: File, maxAllowedSize: number) {
     try {
+
+      if (maxAllowedSize < file.size) {
+        let option = {
+          maxSizeMB: maxAllowedSize / 1024 / 1024, // 最大ファイルサイズ
+        };
+        file = await imageCompression(file, option);
+      }
 
       let src = await blobToBase64(file);
       let base64: string = src.split(',')[1];
