@@ -1,5 +1,5 @@
 import React from 'react';
-import { Space, Empty, Card, Badge, Rate, Progress } from 'antd';
+import { Space, Empty, Card, Badge, Rate, Progress, Image } from 'antd';
 import { DeleteOutlined, ShareAltOutlined } from '@ant-design/icons';
 import 'antd/dist/antd.css'
 
@@ -32,10 +32,12 @@ export default class RelicCard extends React.Component<IRelicCardProps, IRelicCa
     render(): React.ReactNode {
         return <>
             {this.getEmpty()}
-            <Space align='start' wrap={true} direction={'horizontal'}>
-                {this.getRelicCard()}
-                {this.getLoadingCard()}
-            </Space>
+            <Image.PreviewGroup>
+                <Space align='start' wrap={true}>
+                    {this.getRelicCard()}
+                    {this.getLoadingCard()}
+                </Space>
+            </Image.PreviewGroup>
         </>;
     }
 
@@ -53,7 +55,7 @@ export default class RelicCard extends React.Component<IRelicCardProps, IRelicCa
             let cover =
                 relic.more ?
                     <button className={'button-reset'} onClick={() => { this.setState({ imagePopupSrc: relic.src }); }}>
-                        <img src={relic.src} style={{ maxHeight: '400px', maxWidth: '100%', width: 'auto', display: 'inline' }} alt='聖遺物画像' />
+                        <Image src={relic.src} style={{ maxHeight: '400px', maxWidth: '100%', textAlign: 'center' }} alt='聖遺物画像' />
                     </button> :
                     <img alt='' />;
             let title =
@@ -87,17 +89,22 @@ export default class RelicCard extends React.Component<IRelicCardProps, IRelicCa
                 <ShareAltOutlined key='shareAlt' onClick={(e) => { e.preventDefault(); this.props.onAuth(relic); }} />,
             ]
             let card =
-                <Badge dot={relic.showDot} key={`card_${relic.RelicMD5}`}>
-                    <Card hoverable
-                        bordered={true}
-                        style={{ width: '250px', height: cardHeight, maxHeight: '800px', textAlign: 'center' }}
-                        cover={cover}
-                        title={title}
-                        extra={extra}
-                        actions={actions}>
-                        {relic.more ? body : undefined}
-                    </Card>
-                </Badge>
+                <Card hoverable
+                    bordered={true}
+                    style={{ width: '250px', height: cardHeight, maxHeight: '800px', textAlign: 'center' }}
+                    cover={cover}
+                    title={title}
+                    extra={extra}
+                    actions={actions}>
+                    {relic.more ? body : undefined}
+                </Card>
+
+            if (relic.showDot) {
+                card =
+                    <Badge.Ribbon color={'red'} text='new' key={`card_${relic.RelicMD5}`}>
+                        {card}
+                    </Badge.Ribbon>
+            }
 
             cards.push(card);
         }

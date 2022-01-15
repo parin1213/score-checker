@@ -17,7 +17,6 @@ import FilterOptions from './Models/FilterOptions';
 import './App.css';
 import Tweet from './Components/tweet';
 import Link from 'antd/lib/typography/Link';
-import { Footer } from 'antd/lib/layout/layout';
 
 interface IAppProps { }
 interface IAppState {
