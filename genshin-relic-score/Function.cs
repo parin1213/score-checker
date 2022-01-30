@@ -213,7 +213,7 @@ namespace genshin_relic_score
             //------------------------------
             // メインステータス
             //------------------------------
-            var mainStatus = relic.getMainStatus(word_list);
+            var mainStatus = relic.getMainStatus(word_list, relicSubStatusList);
             body.main_status = selectMainStatus(mainStatus, relicSubStatusList);
 
             //------------------------------
@@ -251,12 +251,12 @@ namespace genshin_relic_score
             var min_x = subRelicRect.Location.X - subRelicRect.Width;
             var max_x = subRelicRect.Location.X + subRelicRect.Width;
 
-            var main = mainStatus.Where(m => m.rect.Top < subRelicRect.Top)
+            var mains = mainStatus.Where(m => m.rect.Top < subRelicRect.Top)
                                   .Where(m => min_x < m.rect.Location.X && m.rect.Location.X < max_x)
-                                  .OrderBy(m => m.rect.Location.Distance(subRelicRect.Location))
-                                  .FirstOrDefault();
+                                  .Where(m => m.rect.Right < max_x * 2)
+                                  .OrderBy(m => m.rect.Location.Distance(subRelicRect.Location));
 
-            main = main ?? mainStatus.FirstOrDefault();
+            var main = mains.FirstOrDefault() ?? mainStatus.FirstOrDefault();
 
             return main;
         }

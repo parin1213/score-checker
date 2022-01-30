@@ -364,7 +364,7 @@ namespace genshin.relic.score.Models.Recognize
             {
                 m.text.text = $"{m.match.Groups["class"]}+{m.match.Groups["value"]}";
 
-                return m.text;
+                return m.text.extraWords();
             })
             .ToArray();
 
@@ -455,7 +455,7 @@ namespace genshin.relic.score.Models.Recognize
             return subStatusOption;
         }
 
-        public List<Status> getMainStatus(IEnumerable<RelicWord> lines)
+        public List<Status> getMainStatus(IEnumerable<RelicWord> lines, List<Status> relicSubStatusList)
         {
             //------------------------------
             // 正規表現パターン生成
@@ -464,6 +464,19 @@ namespace genshin.relic.score.Models.Recognize
             var status_class_pattern = string.Join("|", status_classes);
             var numeric_pattern = "(?<value>([1-9][\\d*|0|,]*)(\\.\\d+)?(%)?)";
             var pattern = $"(?<class>{status_class_pattern})(.*?)?" + "(\\+)?" + numeric_pattern;
+
+            //------------------------------
+            // サブステータスの場所に近い箇所を算出
+            //------------------------------
+            //if (relicSubStatusList.Any())
+            //{
+            //    var subRelicRect = relicSubStatusList.Select(s => s.rect)
+            //                             .Aggregate((r1, r2) => Rectangle.Union(r1, r2));
+
+            //    var min_x = subRelicRect.Left - subRelicRect.Width;
+            //    var max_x = subRelicRect.Right * 1.5;
+            //    lines = lines.Where(l => min_x <= l.rect.X && l.rect.X <= max_x);
+            //}
 
             var statusList = getStatus(lines, pattern, numeric_pattern, needsMainStatus: true);
 
