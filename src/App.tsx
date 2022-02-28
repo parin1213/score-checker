@@ -466,7 +466,7 @@ class App extends Component<IAppProps, IAppState> {
                     {Array.from(
                       (new Set(this.Flat(this.list).map(r => r.set || '').concat([""]))))
                       .sort((a, b) => a.localeCompare(b))
-                      .map(set => <Select.Option value={set}> {set} </Select.Option>)}
+                      .map(set => <Select.Option value={set}> <img src={`./relic_icon/${set}.png`} alt='' style={{ height: '1.5em' }} />{set} </Select.Option>)}
                   </Select>
                 </Space>
               </Space></Col></Row>

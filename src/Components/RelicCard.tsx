@@ -55,7 +55,7 @@ export default class RelicCard extends React.Component<IRelicCardProps, IRelicCa
             let cover =
                 relic.more ?
                     <button className={'button-reset'} onClick={() => { this.setState({ imagePopupSrc: relic.src }); }}>
-                        <Image src={relic.src} style={{ maxHeight: '400px', maxWidth: '100%', textAlign: 'center' }} alt='聖遺物画像' />
+                        <Image src={relic.src} style={{ height: '350px', width: '100%', textAlign: 'center', objectFit: 'scale-down' }} alt='聖遺物画像' />
                     </button> :
                     <img alt='' />;
             let title =
