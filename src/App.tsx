@@ -457,7 +457,7 @@ class App extends Component<IAppProps, IAppState> {
                 </Space>
                 <Space>聖遺物セット：</Space>
                 <Space>
-                  <Select style={{ width: '160px' }}
+                  <Select style={{ width: '200px' }}
                     onSelect={
                       (value: string) => {
                         this.filterOptions.Set = value;
@@ -490,7 +490,7 @@ class App extends Component<IAppProps, IAppState> {
                     {Array.from(
                       (new Set(this.Flat(this.list).map(r => r.category || '').concat([""]))))
                       .sort((a, b) => a.localeCompare(b))
-                      .map(category => <Select.Option value={category}> {category} </Select.Option>)}
+                      .map(category => <Select.Option value={category}> <img src={`./relic_icon/${category}.png`} alt='' style={{ height: '1.5em' }} />{category} </Select.Option>)}
                   </Select>
                 </Space>
               </Space></Col></Row>
