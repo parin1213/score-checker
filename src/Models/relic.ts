@@ -196,7 +196,7 @@ export function calculateScore(relic: ResponseRelicData): string {
             ["HP", ResponseRelicData.scoreOptions.HP],
             ["HP%", ResponseRelicData.scoreOptions.HP_RATE],
             ["元素熟知", ResponseRelicData.scoreOptions.ElementalMastery],
-            ["元素チャージ効率", ResponseRelicData.scoreOptions.EnergyRecharge],
+            ["元素チャージ効率%", ResponseRelicData.scoreOptions.EnergyRecharge],
             ["会心率%", ResponseRelicData.scoreOptions.CRIT_Rate],
             ["会心ダメージ%", ResponseRelicData.scoreOptions.CRIT_DMG],
         ]);
@@ -204,7 +204,7 @@ export function calculateScore(relic: ResponseRelicData): string {
     scoreRates.forEach((rate, key) => {
 
         let value = relic.sub_status.filter(s => s.pair.Key === key)[0];
-        if (value != null) {
+        if (value!!) {
             score += value.pair.Value * rate;
         }
     });
