@@ -13,9 +13,10 @@ import imageCompression from "browser-image-compression";
 import DropZone from './Components/DropZone'
 import RelicCard from './Components/RelicCard';
 import CharacterScoreTable from './Components/CharacterScoreTable';
-import ResponseRelicData, { blobToBase64, MD5, toCropImage, toRecognizeRect, toRectangleObject } from './Models/relic';
+import ResponseRelicData, { blobToBase64, calculateScore, MD5, toCropImage, toRecognizeRect, toRectangleObject } from './Models/relic';
 import { loadLocalStorage, RelicDatabase, saveLocalStorage } from './Components/BrowserStorage';
 import FilterOptions from './Models/FilterOptions';
+import ScoreOptions from './Models/ScoreOptions';
 import './App.css';
 import Tweet from './Components/tweet';
 import Link from 'antd/lib/typography/Link';
@@ -29,6 +30,8 @@ interface IAppState {
   showCharacter?: boolean;
   filterOptions?: FilterOptions;
   doFilterOpen?: boolean;
+  scoreOptions?: ScoreOptions;
+  doScoreOption?: boolean;
   doTweet?: boolean;
   tweetRelic?: ResponseRelicData;
 
@@ -42,7 +45,9 @@ class App extends Component<IAppProps, IAppState> {
   private list: ResponseRelicData[] = [];
   private showCharacter = false;
   private filterOptions = new FilterOptions();
+  private scoreOptions = new ScoreOptions();
   private doFilterOpen = false;
+  private doScoreOption = false;
   private doTweet = false;
   private tweetRelic: ResponseRelicData | undefined = undefined;
 
@@ -60,6 +65,8 @@ class App extends Component<IAppProps, IAppState> {
       showCharacter: this.showCharacter,
       filterOptions: this.filterOptions,
       doFilterOpen: this.doFilterOpen,
+      scoreOptions: this.scoreOptions,
+      doScoreOption: this.doScoreOption,
       doTweet: this.doTweet,
       tweetRelic: this.tweetRelic,
     }
@@ -71,6 +78,7 @@ class App extends Component<IAppProps, IAppState> {
     // * エラーメッセージ
     // ****************************************
     let alert = this.drawAlert();
+    ResponseRelicData.scoreOptions = this.scoreOptions;
     let drawTable =
       this.state.showCharacter ?
         <CharacterScoreTable list={this.state.list} key={'charactorTable'}></CharacterScoreTable>
@@ -88,7 +96,7 @@ class App extends Component<IAppProps, IAppState> {
       <div className="App" style={{ margin: '10px' }}>
         <h1 style={{ textAlign: 'center' }}>聖遺物スコアチェッカー</h1>
         {this.state.doTweet ?
-          <Tweet score={this.state.tweetRelic?.score || '0'}
+          <Tweet score={calculateScore(this.state.tweetRelic!) || '0'}
             onHide={() => {
               this.doTweet = false;
               this.setState({ doTweet: false })
@@ -122,7 +130,16 @@ class App extends Component<IAppProps, IAppState> {
               </Button>
             </Col>
           </Row>
+          <Row justify="start" style={{ flexWrap: 'wrap', paddingBottom: '1rem' }}>
+            <Col span={"24"}>
+              <Button type='primary' disabled={!this.state.list?.length}
+                onClick={() => { this.onAllRemove(); }} danger>
+                {"全削除"}
+              </Button>
+            </Col>
+          </Row>
         </div>
+        {this.setScoreOption()}
         <Card size='small' style={{ padding: 0, textAlign: 'center', position: 'sticky', bottom: '0px' }}>
           問い合わせ/不具合報告等は
           <Link href="https://twitter.com/score_checker" target="_blank">
@@ -135,7 +152,7 @@ class App extends Component<IAppProps, IAppState> {
   }
 
   async componentDidMount() {
-    console.log('version: React v1.1.5')
+    console.log('version: React v1.1.6')
     let UserGuid = loadLocalStorage("UserGuid");
     if (!UserGuid) {
       UserGuid = uuidv4();
@@ -167,6 +184,20 @@ class App extends Component<IAppProps, IAppState> {
     var more = !flat.every(r => r.more);
     flat.forEach(r => r.more = more);
     this.setState({});
+  }
+
+  onAllRemove() {
+    Modal.confirm({
+      content: '削除しますか？',
+      title: '削除すると元に戻せません！！',
+      okCancel: true,
+      type: 'warning',
+      onOk: () => {
+        RelicDatabase.allRemoveRelicDB();
+        this.list = [];
+        this.setState({ list: this.list });
+      }
+    })
   }
 
   onRemove(relic: ResponseRelicData) {
@@ -368,7 +399,7 @@ class App extends Component<IAppProps, IAppState> {
 
     // score
     if (this.filterOptions.enableScore)
-      list = list.filter(r => this.filterOptions.Socre <= parseFloat(r.score));
+      list = list.filter(r => this.filterOptions.Socre <= parseFloat(calculateScore(r)));
 
     // set
     if (this.filterOptions.enableSet && this.filterOptions.Set !== '')
@@ -390,7 +421,7 @@ class App extends Component<IAppProps, IAppState> {
     if (this.filterOptions.enableCharacter && this.filterOptions.Character !== '')
       list = list.filter(r => r.character === this.filterOptions.Character);
 
-    list.sort((left, right) => parseFloat(right.score) - parseFloat(left.score))
+    list.sort((left, right) => parseFloat(calculateScore(right)) - parseFloat(calculateScore(left)))
     return list;
   }
 
@@ -432,11 +463,14 @@ class App extends Component<IAppProps, IAppState> {
                       this.setState({ filterOptions: this.filterOptions });
                     }} />
                 </Space>
+                { /**
+                   * 
+                   */}
                 <Space>スコア：</Space>
                 <Space>
                   <InputNumber
                     min={0}
-                    max={Math.max(...this.Flat(this.state.list!).map(r => parseFloat(r.score)))}
+                    max={Math.max(...this.Flat(this.state.list!).map(r => parseFloat(calculateScore(r))))}
                     defaultValue={this.state.filterOptions?.Socre}
                     onChange={
                       (value) => {
@@ -575,5 +609,176 @@ class App extends Component<IAppProps, IAppState> {
       </>
     )
   }
+
+  setScoreOption() {
+    return (
+      <>
+        <div onClick={() => { this.doScoreOption = !this.state.doScoreOption; this.setState({ doScoreOption: this.doScoreOption }) }} style={{ cursor: 'pointer' }}>
+          <Divider orientation="left"
+            style={{ fontWeight: 'bold', display: 'inline-flex' }}>
+            {
+              (this.state.doScoreOption && this.state.showCharacter === false) ?
+                <CaretDownOutlined />
+                :
+                <CaretRightOutlined />
+            }
+            スコア設定(β版)
+          </Divider>
+        </div>
+        {
+          this.state.doScoreOption ?
+            <>
+              <Row style={{ flexWrap: 'wrap' }}><Col><Space>
+                <Space>攻撃+</Space>
+                <Space>
+                  <InputNumber
+                    min={0}
+                    defaultValue={this.state.scoreOptions?.ATK}
+                    onChange={
+                      (value) => {
+                        this.scoreOptions.ATK = value;
+                        this.setState({ scoreOptions: this.scoreOptions, list: this.list })
+                      }}>
+                  </InputNumber>
+                </Space>
+              </Space></Col></Row>
+              <Row style={{ flexWrap: 'wrap' }}><Col><Space>
+                <Space>攻撃%</Space>
+                <Space>
+                  <InputNumber
+                    min={0}
+                    defaultValue={this.state.scoreOptions?.ATK_Rate}
+                    onChange={
+                      (value) => {
+                        this.scoreOptions.ATK_Rate = value;
+                        this.setState({ scoreOptions: this.scoreOptions, list: this.list })
+                      }}>
+                  </InputNumber>
+                </Space>
+              </Space></Col></Row>
+              <Row style={{ flexWrap: 'wrap' }}><Col><Space>
+                <Space>防御力+</Space>
+                <Space>
+                  <InputNumber
+                    min={0}
+                    defaultValue={this.state.scoreOptions?.DEF}
+                    onChange={
+                      (value) => {
+                        this.scoreOptions.DEF = value;
+                        this.setState({ scoreOptions: this.scoreOptions, list: this.list })
+                      }}>
+                  </InputNumber>
+                </Space>
+              </Space></Col></Row>
+              <Row style={{ flexWrap: 'wrap' }}><Col><Space>
+                <Space>防御力%</Space>
+                <Space>
+                  <InputNumber
+                    min={0}
+                    defaultValue={this.state.scoreOptions?.DEF_Rate}
+                    onChange={
+                      (value) => {
+                        this.scoreOptions.DEF_Rate = value;
+                        this.setState({ scoreOptions: this.scoreOptions, list: this.list })
+                      }}>
+                  </InputNumber>
+                </Space>
+              </Space></Col></Row>
+              <Row style={{ flexWrap: 'wrap' }}><Col><Space>
+                <Space>HP+</Space>
+                <Space>
+                  <InputNumber
+                    min={0}
+                    defaultValue={this.state.scoreOptions?.HP}
+                    onChange={
+                      (value) => {
+                        this.scoreOptions.HP = value;
+                        this.setState({ scoreOptions: this.scoreOptions, list: this.list })
+                      }}>
+                  </InputNumber>
+                </Space>
+              </Space></Col></Row>
+              <Row style={{ flexWrap: 'wrap' }}><Col><Space>
+                <Space>HP%</Space>
+                <Space>
+                  <InputNumber
+                    min={0}
+                    defaultValue={this.state.scoreOptions?.HP_RATE}
+                    onChange={
+                      (value) => {
+                        this.scoreOptions.HP_RATE = value;
+                        this.setState({ scoreOptions: this.scoreOptions, list: this.list })
+                      }}>
+                  </InputNumber>
+                </Space>
+              </Space></Col></Row>
+              <Row style={{ flexWrap: 'wrap' }}><Col><Space>
+                <Space>元素熟知</Space>
+                <Space>
+                  <InputNumber
+                    min={0}
+                    defaultValue={this.state.scoreOptions?.ElementalMastery}
+                    onChange={
+                      (value) => {
+                        this.scoreOptions.ElementalMastery = value;
+                        this.setState({ scoreOptions: this.scoreOptions, list: this.list })
+                      }}>
+                  </InputNumber>
+                </Space>
+              </Space></Col></Row>
+              <Row style={{ flexWrap: 'wrap' }}><Col><Space>
+                <Space>元素チャージ効率</Space>
+                <Space>
+                  <InputNumber
+                    min={0}
+                    defaultValue={this.state.scoreOptions?.EnergyRecharge}
+                    onChange={
+                      (value) => {
+                        this.scoreOptions.EnergyRecharge = value;
+                        this.setState({ scoreOptions: this.scoreOptions, list: this.list })
+                      }}>
+                  </InputNumber>
+                </Space>
+              </Space></Col></Row>
+              <Row style={{ flexWrap: 'wrap' }}><Col><Space>
+                <Space>会心率</Space>
+                <Space>
+                  <InputNumber
+                    min={0}
+                    max={19 * 4}
+                    defaultValue={this.state.scoreOptions?.CRIT_Rate}
+                    onChange={
+                      (value) => {
+                        this.scoreOptions.CRIT_Rate = value;
+                        this.setState({ scoreOptions: this.scoreOptions, list: this.list })
+                      }}>
+                  </InputNumber>
+                </Space>
+              </Space></Col></Row>
+              <Row style={{ flexWrap: 'wrap' }}><Col><Space>
+                <Space>会心ダメージ</Space>
+                <Space>
+                  <InputNumber
+                    min={0}
+                    max={19 * 4}
+                    defaultValue={this.state.scoreOptions?.CRIT_DMG}
+                    onChange={
+                      (value) => {
+                        this.scoreOptions.CRIT_DMG = value;
+                        this.setState({ scoreOptions: this.scoreOptions, list: this.list })
+                      }}>
+                  </InputNumber>
+                </Space>
+              </Space></Col></Row>
+
+            </>
+            :
+            undefined
+        }
+      </>
+    )
+  }
+
+
 }
 export default App;

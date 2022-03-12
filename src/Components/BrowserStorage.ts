@@ -56,6 +56,18 @@ class RelicDB {
         }
     }
 
+    allRemoveRelicDB() {
+        try {
+            this.db.relic_list.clear()
+                .catch((error) => {
+                    console.log(error);
+                });
+        } catch (e) {
+            console.error(e);
+            throw e;
+        }
+    }
+
     async loadRelicDB() {
         let array = undefined;
         try {

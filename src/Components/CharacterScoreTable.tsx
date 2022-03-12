@@ -2,7 +2,7 @@ import React from 'react';
 import { Table, Tag } from 'antd';
 import 'antd/dist/antd.css'
 
-import ResponseRelicData, { Status, StatustoSring } from '../Models/relic';
+import ResponseRelicData, { calculateScore, Status, StatustoSring } from '../Models/relic';
 import '../App.css';
 import { ColumnType } from 'antd/lib/table';
 
@@ -66,7 +66,7 @@ export default class CharacterScoreTable extends React.Component<ICharacterScore
 
                 let character: CharacterScore = {
                     Name: r.character,
-                    TotalScore: rList.map(r => parseFloat(r.score)).reduce((prev, current) => prev + current),
+                    TotalScore: rList.map(r => parseFloat(calculateScore(r))).reduce((prev, current) => prev + current),
                     sets: Array.from(new Set(rList.map(r => r.set)))
                         .filter(s => !!s)
                         .filter(s => 2 <= rList.filter(r => r.set === s).length)

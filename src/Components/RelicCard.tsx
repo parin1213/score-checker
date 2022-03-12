@@ -4,7 +4,7 @@ import { DeleteOutlined, ShareAltOutlined } from '@ant-design/icons';
 import 'antd/dist/antd.css'
 
 import '../App.css';
-import ResponseRelicData, { StatustoSring } from '../Models/relic';
+import ResponseRelicData, { calculateScore, StatustoSring } from '../Models/relic';
 
 interface IRelicCardProps {
     list?: ResponseRelicData[],
@@ -60,8 +60,8 @@ export default class RelicCard extends React.Component<IRelicCardProps, IRelicCa
                     <img alt='' />;
             let title =
                 <>
-                    <Rate defaultValue={parseFloat(relic.score) / 10} />
-                    <div>(聖遺物スコア:{relic.score})</div>
+                    <Rate defaultValue={parseFloat(calculateScore(relic)) / 10} />
+                    <div>(聖遺物スコア:{calculateScore(relic)})</div>
                     <div>{relic?.category} / {relic?.set}</div>
                 </>
             let extra =
