@@ -67,11 +67,81 @@ namespace genshin.relic.score.Models.Recognize
             //------------------------------
             ImageAnnotatorClient client = ImageAnnotatorClient.Create();
             text = await client.DetectDocumentTextAsync(image);
-
+            //var words = WordAnalyzeV2(text);
             var words = WordAnalyze(text);
+
+            //var buildWords = await wordBuildAnalyze(text);
+            //if (buildWords.Any()) { words = words.Concat(buildWords); }
 
             return words;
             //return text.Text.Split('\n').ToList();
+        }
+
+        private async Task<RelicWord[]> wordBuildAnalyze(TextAnnotation text) 
+        {
+            RelicWord[] relic = Enumerable.Empty<RelicWord>().ToArray();
+            try
+            {
+                int width = text.Pages.FirstOrDefault().Width;
+                int height = text.Pages.FirstOrDefault().Height;
+
+
+            }
+            catch (Exception ex) { }
+
+            return relic;
+        }
+        private static IEnumerable<RelicWord> WordAnalyzeV2(TextAnnotation text)
+        {
+            var words = text.Pages
+                            .SelectMany(p => p.Blocks)
+                            .SelectMany(b => b.Paragraphs)
+                            .SelectMany(p => p.Words)
+                            .SelectMany(w => w.Symbols);
+
+            var rWords = words.Select(w => {
+                var min = w.BoundingBox.Vertices.OrderBy(v => v.X * v.Y).FirstOrDefault();
+                var max = w.BoundingBox.Vertices.OrderByDescending(v => v.X * v.Y).FirstOrDefault();
+
+                return new RelicWord()
+                {
+                    text = w.Text,
+                    rect = new Rectangle(
+                        new Point(min.X, min.Y),
+                        new Size(max.X - min.X, max.Y - min.Y)
+                        ),
+                };
+            })
+            .OrderByDescending(w => w.rect.X)
+            .ToList();
+
+            var relicWords = new List<RelicWord>();
+            for (int i = 0; i < rWords.Count; i++)
+            {
+                var word = rWords[i];
+                var wordList = new List<RelicWord>();
+                wordList.Add(word);
+
+                int j = i + 1;
+                while (j < rWords.Count)
+                {
+                    var nextWord = rWords[j];
+                    if ((Math.Abs(nextWord.rect.X - word.rect.Right) < word.rect.Width * 2) &&
+                        (nextWord.rect.Y < word.rect.Y + (word.rect.Height / 3)))
+                    {
+                        wordList.Add(nextWord);
+                        rWords.RemoveAt(j);
+                        continue;
+                    }
+
+                    j++;
+                }
+
+                var _text = wordList.OrderByDescending(w => w.rect.X).Aggregate((a, b) => a.MergeFrom(b, ""));
+                relicWords.Add(_text);
+
+            }
+            return relicWords;
         }
 
         private static IEnumerable<RelicWord> WordAnalyze(TextAnnotation text)

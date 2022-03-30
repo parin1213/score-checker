@@ -596,5 +596,31 @@
     "baseATK": 191,
     "DEF": 734,
     "energy": 60
+  },
+  {
+    "rarity": 5,
+    "character": "八重神子",
+    "element": "雷",
+    "weapon": "法器",
+    "gender": "女",
+    "birthday": "6月27日",
+    "country": "稲妻",
+    "maxHP": 10372,
+    "baseATK": 340,
+    "DEF": 569,
+    "energy": 90
+  },
+  {
+    "rarity": 5,
+    "character": "神里綾人",
+    "element": "水",
+    "weapon": "片手剣",
+    "gender": "男",
+    "birthday": "3月26日",
+    "country": "稲妻",
+    "maxHP": 13715,
+    "baseATK": 299,
+    "DEF": 769,
+    "energy": 80
   }
 ]

@@ -28,11 +28,11 @@ namespace genshin.relic.score.Models.Recognize
             return text + rect.ToString();
         }
 
-        public RelicWord MergeFrom(RelicWord mergedObject)
+        public RelicWord MergeFrom(RelicWord mergedObject, string separator = "+")
         {
             RelicWord newObject = new RelicWord();
 
-            newObject.text = $"{text}+{mergedObject.text}";
+            newObject.text = $"{text}{separator}{mergedObject.text}";
             newObject.rect = Rectangle.Union(rect, mergedObject.rect);
 
             newObject.words.Clear();
@@ -53,7 +53,7 @@ namespace genshin.relic.score.Models.Recognize
             newObject.text = text;
             newObject.rect = partWords.Select(w => w.rect).Aggregate((r1, r2) => Rectangle.Union(r1, r2));
             newObject.words.AddRange(words);
-            if(oldRect != rect)
+            if(oldRect != newObject.rect)
             {
                 var excluds = words.Where(w => candidateWords.Any(candidateWord => w.text.Contains(candidateWord)) == false);
                 Console.WriteLine(String.Join(Environment.NewLine, excluds.Select(e => e.ToString())));
