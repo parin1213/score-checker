@@ -622,7 +622,7 @@ namespace genshin.relic.score.Models.Recognize
 
             var sets = relicKind.Select(r => r.set).Distinct().Reverse();
             var sList = lines
-                .Select(s => (set: sets.Where(set => s.text.Contains(set)).FirstOrDefault(), line: s))
+                .Select(s => (set: sets.Where(set => s.text.Replace("沈論の心", "沈淪の心").Contains(set)).FirstOrDefault(), line: s))
                 .Where(t => t.set != null)
                 .OrderBy(t => t.line.rect.Location.Distance(rect.Location));
 
