@@ -4,6 +4,7 @@ using System.Drawing;
 using System.Linq;
 using System.Text;
 using genshin.relic.score.JsonConverter;
+using Google.Cloud.Vision.V1;
 using Newtonsoft.Json;
 
 namespace genshin.relic.score.Models.Recognize
@@ -11,6 +12,7 @@ namespace genshin.relic.score.Models.Recognize
     public class RelicWord
     {
         public string text;
+        public IEnumerable<RelicWord> chars;
 
         [JsonConverter(typeof(RectConverter))]
         public Rectangle rect { get; set; }

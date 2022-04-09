@@ -67,84 +67,13 @@ namespace genshin.relic.score.Models.Recognize
             //------------------------------
             ImageAnnotatorClient client = ImageAnnotatorClient.Create();
             text = await client.DetectDocumentTextAsync(image);
-            //var words = WordAnalyzeV2(text);
             var words = WordAnalyze(text);
 
-            //var buildWords = await wordBuildAnalyze(text);
-            //if (buildWords.Any()) { words = words.Concat(buildWords); }
-
-            return words;
+            return words.ToList();
             //return text.Text.Split('\n').ToList();
         }
 
-        private async Task<RelicWord[]> wordBuildAnalyze(TextAnnotation text) 
-        {
-            RelicWord[] relic = Enumerable.Empty<RelicWord>().ToArray();
-            try
-            {
-                int width = text.Pages.FirstOrDefault().Width;
-                int height = text.Pages.FirstOrDefault().Height;
-
-
-            }
-            catch (Exception ex) { }
-
-            return relic;
-        }
-        private static IEnumerable<RelicWord> WordAnalyzeV2(TextAnnotation text)
-        {
-            var words = text.Pages
-                            .SelectMany(p => p.Blocks)
-                            .SelectMany(b => b.Paragraphs)
-                            .SelectMany(p => p.Words)
-                            .SelectMany(w => w.Symbols);
-
-            var rWords = words.Select(w => {
-                var min = w.BoundingBox.Vertices.OrderBy(v => v.X * v.Y).FirstOrDefault();
-                var max = w.BoundingBox.Vertices.OrderByDescending(v => v.X * v.Y).FirstOrDefault();
-
-                return new RelicWord()
-                {
-                    text = w.Text,
-                    rect = new Rectangle(
-                        new Point(min.X, min.Y),
-                        new Size(max.X - min.X, max.Y - min.Y)
-                        ),
-                };
-            })
-            .OrderByDescending(w => w.rect.X)
-            .ToList();
-
-            var relicWords = new List<RelicWord>();
-            for (int i = 0; i < rWords.Count; i++)
-            {
-                var word = rWords[i];
-                var wordList = new List<RelicWord>();
-                wordList.Add(word);
-
-                int j = i + 1;
-                while (j < rWords.Count)
-                {
-                    var nextWord = rWords[j];
-                    if ((Math.Abs(nextWord.rect.X - word.rect.Right) < word.rect.Width * 2) &&
-                        (nextWord.rect.Y < word.rect.Y + (word.rect.Height / 3)))
-                    {
-                        wordList.Add(nextWord);
-                        rWords.RemoveAt(j);
-                        continue;
-                    }
-
-                    j++;
-                }
-
-                var _text = wordList.OrderByDescending(w => w.rect.X).Aggregate((a, b) => a.MergeFrom(b, ""));
-                relicWords.Add(_text);
-
-            }
-            return relicWords;
-        }
-
-        private static IEnumerable<RelicWord> WordAnalyze(TextAnnotation text)
+        private IEnumerable<RelicWord> WordAnalyze(TextAnnotation text)
         {
             //foreach (var page in text.Pages)
             //{
@@ -187,38 +116,91 @@ namespace genshin.relic.score.Models.Recognize
                             var _text = string.Join("", word.Select(w => string.Join("", w.Symbols.Select(s => s.Text))));
 
                             //System.Diagnostics.Debug.WriteLine($"    box: {box}, Word: {_text}");
-                            yield return new RelicWord()
+                            var rWord =  new RelicWord()
                             {
                                 text = _text,
                                 rect = new Rectangle(
                                             new Point(min.X, min.Y),
                                             new Size(max.X - min.X, max.Y - min.Y)
                                         ),
+                                chars = word.Select(w => 
+                                                new RelicWord 
+                                                { 
+                                                    rect = w.BoundingBox.Vertices.ToRectangle(),
+                                                    text = string.Join("", w.Symbols.Select(s => s.Text)),
+                                                }),
                             };
+
+                            var doSplit = false;
+                            do
+                            {
+                                RelicWord rWord1 = null;
+                                RelicWord rWord2 = null;
+                                try
+                                {
+                                    doSplit = splitWords(rWord, out rWord1, out rWord2);
+                                }catch(Exception ex)
+                                {
+                                    // エラー時のフェールセーフ対策
+                                    rWord1 = rWord;
+                                    rWord2 = null;
+                                    doSplit = false;
+                                }
+                                yield return rWord1;
+                                if (rWord2 != null)
+                                {
+                                    rWord = rWord2;
+                                }
+                            } while (doSplit);
                         }
                     }
                 }
             }
-            //var groups = text.Pages.SelectMany(page => page.Blocks)
-            //            .SelectMany(block => block.Paragraphs)
-            //            .SelectMany(paragraph => paragraph.Words)
-            //            .GroupBy(word => word.BoundingBox.Vertices.Min(v => v.Y))
-            //            .OrderBy(group => group.Key);
+        }
 
-            //var chunk_y = getChunkWords_y(groups);
+        private bool splitWords(RelicWord rWord, out RelicWord rWord1, out RelicWord rWord2)
+        {
+            rWord1 = null;
+            rWord2 = null;
 
-            //var words = chunk_y;
+            bool doSplit = false;
+            for (int i = 1; i < rWord.chars.Count(); i++)
+            {
+                var prevC = rWord.chars.ElementAtOrDefault(i - 1);
+                var c = rWord.chars.ElementAtOrDefault(i);
+                var nextC = rWord.chars.ElementAtOrDefault(i + 1);
+                int prevMargin = c?.rect.X - prevC?.rect.Right ?? 0;
+                int nextMargin = nextC?.rect.X - c?.rect.Right ?? 0;
+                if (0 < prevMargin && prevMargin * 5 < nextMargin)
+                {
+                    System.Diagnostics.Debug.WriteLine($"------");
+                    System.Diagnostics.Debug.WriteLine($"text:{rWord.text}");
+                    System.Diagnostics.Debug.WriteLine($"prev:{prevC}");
+                    System.Diagnostics.Debug.WriteLine($"crnt:{c}");
+                    System.Diagnostics.Debug.WriteLine($"next:{nextC}");
+                    System.Diagnostics.Debug.WriteLine($"prevMargin:{prevMargin}, nextMargin:{nextMargin}");
+                    System.Diagnostics.Debug.WriteLine($"------");
+                    
+                    var split1 = rWord.chars.Take(i + 1).Aggregate((w1, w2) => new RelicWord() { text = w1.text + w2.text, rect = Rectangle.Union(w1.rect, w2.rect), });
+                    var split2 = rWord.chars.Skip(i + 1).Aggregate((w1, w2) => new RelicWord() { text = w1.text + w2.text, rect = Rectangle.Union(w1.rect, w2.rect), });
 
+                    split1.chars = rWord.chars.Take(i + 1);
+                    split2.chars = rWord.chars.Skip(i + 1);
 
-            //foreach (var word in words)
-            //{
-            //    var min = word.SelectMany(w => w.BoundingBox.Vertices).OrderBy(v => v.X * v.Y).FirstOrDefault();
-            //    var max = word.SelectMany(w => w.BoundingBox.Vertices).OrderByDescending(v => v.X * v.Y).FirstOrDefault();
-            //    var box = $"({min.X}, {min.Y}) - ({max.X}, {max.Y})";
-            //    var _text = string.Join("", word.Select(w => string.Join("", w.Symbols.Select(s => s.Text))));
+                    rWord1 = split1;
+                    rWord2 = split2;
+                    doSplit = true;
+                    break;
+                }
+            }
 
-            //    System.Diagnostics.Debug.WriteLine($"    box: {box}, Word: {_text}");
-            //}
+            if (doSplit == false)
+            {
+                rWord1 = rWord;
+                rWord2 = null;
+            }
+
+            return doSplit;
         }
 
         public IEnumerable<IEnumerable<Status>> chunkRelicSubStatus(IEnumerable<Status> sub_status)
