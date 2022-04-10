@@ -123,11 +123,12 @@ namespace genshin.relic.score.Models.Recognize
                                             new Point(min.X, min.Y),
                                             new Size(max.X - min.X, max.Y - min.Y)
                                         ),
-                                chars = word.Select(w => 
+                                chars = word.SelectMany(w => w.Symbols)
+                                            .Select(s => 
                                                 new RelicWord 
                                                 { 
-                                                    rect = w.BoundingBox.Vertices.ToRectangle(),
-                                                    text = string.Join("", w.Symbols.Select(s => s.Text)),
+                                                    rect = s.BoundingBox.Vertices.ToRectangle(),
+                                                    text = string.Join("", s.Text),
                                                 }),
                             };
 
@@ -171,7 +172,10 @@ namespace genshin.relic.score.Models.Recognize
                 var nextC = rWord.chars.ElementAtOrDefault(i + 1);
                 int prevMargin = c?.rect.X - prevC?.rect.Right ?? 0;
                 int nextMargin = nextC?.rect.X - c?.rect.Right ?? 0;
-                if (0 < prevMargin && prevMargin * 5 < nextMargin)
+                int diff = Math.Abs(prevMargin - nextMargin);
+                if (0 < prevMargin &&
+                    10 < diff &&
+                    prevMargin * 5 < nextMargin)
                 {
                     System.Diagnostics.Debug.WriteLine($"------");
                     System.Diagnostics.Debug.WriteLine($"text:{rWord.text}");
