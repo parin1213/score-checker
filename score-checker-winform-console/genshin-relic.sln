@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30717.126
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "genshin-relic", "genshin-relic.csproj", "{4AF81CDD-9B9E-4891-8343-5DD4F7EC9AAF}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{4AF81CDD-9B9E-4891-8343-5DD4F7EC9AAF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4AF81CDD-9B9E-4891-8343-5DD4F7EC9AAF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4AF81CDD-9B9E-4891-8343-5DD4F7EC9AAF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4AF81CDD-9B9E-4891-8343-5DD4F7EC9AAF}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {CF062A75-5076-48E7-B34C-FF359C13B0EA}
+	EndGlobalSection
+EndGlobal

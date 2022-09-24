@@ -1,0 +1,33 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
+    <AWSProjectType>Lambda</AWSProjectType>
+    <!-- This property makes the build directory similar to a publish directory and helps the AWS .NET Lambda Mock Test Tool find project dependencies. -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+	<ItemGroup>
+		<Compile Include="C:\dev\aws\lambda\genshin-relic-score\genshin-relic-score\JsonConverter\RectConverter.cs" Link="JsonConverter\RectConverter.cs" />
+		<Compile Include="C:\dev\aws\lambda\genshin-relic-score\genshin-relic-score\Models\Lambda\LambdaResponse.cs" Link="Models\Lambda\LambdaResponse.cs" />
+		<Compile Include="C:\dev\aws\lambda\genshin-relic-score\genshin-relic-score\Models\Lambda\Request.cs" Link="Models\Lambda\Request.cs" />
+		<Compile Include="C:\dev\aws\lambda\genshin-relic-score\genshin-relic-score\Models\Recognize\RelicKind.cs" Link="Models\Recognize\RelicKind.cs" />
+		<Compile Include="C:\dev\aws\lambda\genshin-relic-score\genshin-relic-score\Models\Recognize\RelicWord.cs" Link="Models\Recognize\RelicWord.cs" />
+		<Compile Include="C:\dev\aws\lambda\genshin-relic-score\genshin-relic-score\Models\ResponseData\ResponseRelicData.cs" Link="Models\ResponseData\ResponseRelicData.cs" />
+		<Compile Include="C:\dev\aws\lambda\genshin-relic-score\genshin-relic-score\Models\ResponseData\Status.cs" Link="Models\ResponseData\Status.cs" />
+	</ItemGroup>
+	<ItemGroup>
+    <Content Include="C:\dev\twitter\.screts\score_checker_scret.json" Link="score_checker_scret.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Amazon.Lambda.Core" Version="2.1.0" />
+	  <PackageReference Include="Amazon.Lambda.Serialization.Json" Version="2.0.0" />
+	  <PackageReference Include="Amazon.Lambda.Serialization.SystemTextJson" Version="2.2.0" />
+	  <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.7.2.8" />
+	  <PackageReference Include="Microsoft.AspNet.WebApi.Client" Version="5.2.7" />
+	  <PackageReference Include="Microsoft.AspNetCore.StaticFiles" Version="2.2.0" />
+	  <PackageReference Include="System.Linq.Async" Version="5.1.0" />
+    <PackageReference Include="TweetinviAPI" Version="5.0.4" />
+  </ItemGroup>
+</Project>

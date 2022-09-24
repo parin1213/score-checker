@@ -1,0 +1,57 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <RootNamespace>genshin_relic</RootNamespace>
+    <UseWindowsForms>true</UseWindowsForms>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <DefineConstants>TRACE;WINFORMS</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\..\..\..\dev\aws\lambda\genshin-relic-score\genshin-relic-score\Extentions\Extentions.cs" Link="Extentions\Extentions.cs" />
+    <Compile Include="..\..\..\..\..\dev\aws\lambda\genshin-relic-score\genshin-relic-score\JsonConverter\RectConverter.cs" Link="genshin.relic.score\JsonConverter\RectConverter.cs" />
+    <Compile Include="..\..\..\..\..\dev\aws\lambda\genshin-relic-score\genshin-relic-score\Models\Lambda\Request.cs" Link="genshin.relic.score\Models\Lambda\Request.cs" />
+    <Compile Include="..\..\..\..\..\dev\aws\lambda\genshin-relic-score\genshin-relic-score\Models\Lambda\LambdaResponse.cs" Link="genshin.relic.score\Models\Lambda\LambdaResponse.cs" />
+    <Compile Include="C:\dev\aws\lambda\genshin-relic-score\genshin-relic-score\Models\Recognize\Relic.cs" Link="genshin.relic.score\Models\Recognize\Relic.cs" />
+    <Compile Include="..\..\..\..\..\dev\aws\lambda\genshin-relic-score\genshin-relic-score\Models\Recognize\RelicKind.cs" Link="genshin.relic.score\Models\Recognize\RelicKind.cs" />
+    <Compile Include="..\..\..\..\..\dev\aws\lambda\genshin-relic-score\genshin-relic-score\Models\Recognize\Character.cs" Link="genshin.relic.score\Models\Recognize\Character.cs" />
+    <Compile Include="..\..\..\..\..\dev\aws\lambda\genshin-relic-score\genshin-relic-score\Models\Recognize\RelicWord.cs" Link="genshin.relic.score\Models\Recognize\RelicWord.cs" />
+    <Compile Include="..\..\..\..\..\dev\aws\lambda\genshin-relic-score\genshin-relic-score\Models\ResponseData\ResponseRelicData.cs" Link="genshin.relic.score\Models\ResponseData\ResponseRelicData.cs" />
+    <Compile Include="..\..\..\..\..\dev\aws\lambda\genshin-relic-score\genshin-relic-score\Models\ResponseData\Status.cs" Link="genshin.relic.score\Models\ResponseData\Status.cs" />
+    <Compile Include="..\..\..\..\..\dev\aws\lambda\genshin-relic-score\genshin-relic-score\Function.cs" Link="genshin.relic.score\Function.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\..\..\..\..\dev\aws\lambda\genshin-relic-score\genshin-relic-score\character.json" Link="character.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\..\..\..\..\dev\aws\lambda\genshin-relic-score\genshin-relic-score\relic.json" Link="relic.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="c:\dev\gcp\.secrets\gcp.json" Link="gcp.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Amazon.Lambda.Core" Version="2.0.0" />
+    <PackageReference Include="Amazon.Lambda.Serialization.Json" Version="2.0.0" />
+    <PackageReference Include="AWSSDK.S3" Version="3.7.3.4" />
+    <PackageReference Include="Google.Cloud.Vision.V1" Version="2.4.0" />
+    <PackageReference Include="OpenCvSharp4" Version="4.5.5.20211231" />
+    <PackageReference Include="OpenCvSharp4.runtime.win" Version="4.5.5.20211231" />
+    <PackageReference Include="SkiaSharp" Version="2.80.3" />
+    <PackageReference Include="SkiaSharp.Views" Version="2.80.3" />
+    <PackageReference Include="SkiaSharp.Views.Desktop.Common" Version="2.80.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="genshin.relic.score\Models\" />
+    <Folder Include="genshin.relic.score\JsonConverter\" />
+  </ItemGroup>
+
+</Project>
