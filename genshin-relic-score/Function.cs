@@ -69,11 +69,26 @@ namespace genshin_relic_score
                 var hash = string.Join("", hashProvider.ComputeHash(imageBinary).Select(b => b.ToString("X2")));
 
                 //------------------------------
+                // 解析オブジェクト生成
+                //------------------------------
+                var relic = new Relic(imageBinary);
+
+                //------------------------------
+                // GCPオブジェクト キャッシュ取得
+                //------------------------------
+                (var hasCacheGcp, var gcpJson) = await tryGetCacheDataGcp(hash);
+                if (hasCacheGcp)
+                {
+                    relic.parseFromJson(gcpJson);
+                }
+
+
+                //------------------------------
                 // キャッシュ取得
                 //------------------------------
                 var strCached = req?.QueryStringParameters?["cached"]?.ToString() ?? "";
                 bool.TryParse(strCached, out var cached);
-                var cacheExists = cached;
+                var cacheExists = cached && !hasCacheGcp;
                 if (cached)
                 {
                     cacheExists &= await tryGetCacheData(hash, body);
@@ -82,7 +97,6 @@ namespace genshin_relic_score
                 //------------------------------
                 // 画像認識
                 //------------------------------
-                var relic = new Relic(imageBinary);
                 var word_list = body.word_list as IEnumerable<RelicWord>;
                 if (word_list == null || cacheExists == false)
                 {
@@ -103,6 +117,10 @@ namespace genshin_relic_score
                     body.word_list = word_list.ToList();
 #endif
                 }
+                //------------------------------
+                // S3へ保存(応答データ)
+                //------------------------------
+                await saveFIleForS3($"image/{hash}_gcp.json", Encoding.UTF8.GetBytes(relic.gcpRecogText));
 
                 //------------------------------
                 // S3へ保存(画像)
@@ -332,6 +350,48 @@ namespace genshin_relic_score
             return response;
         }
 
+        private async Task<(bool, string)> tryGetCacheDataGcp(string hash)
+        {
+            var gcpJson = "{}";
+#if DEBUG || WINFORMS
+            var path = @"C:\dev\aws\s3\relic-server-log_next\";
+            path = Path.Combine(path, $"image/{hash}_gcp.json");
+            if (File.Exists(path) == false) { return (false, gcpJson); }
+            try
+            {
+                gcpJson = await File.ReadAllTextAsync(path);
+            }
+            catch { }
+#else
+            var client = new AmazonS3Client(RegionEndpoint.APNortheast1);
+
+            //------------------------------
+            // キャッシュ存在チェック
+            //------------------------------
+            var request = new ListObjectsV2Request
+            {
+                BucketName = "relic-server-log",
+                Prefix = $"image/{hash}",
+                MaxKeys = 3
+            };
+            var response = await client.ListObjectsV2Async(request, CancellationToken.None);
+            if (response.S3Objects.Any(s3 => s3.Key.Contains($"image/{hash}_gcp.json")) == false) { return (false, gcpJson); }
+
+            //------------------------------
+            // キャッシュ取得
+            //------------------------------
+            var status = await client.GetObjectAsync("relic-server-log", $"image/{hash}_gcp.json");
+            var statusStream = new StreamReader(status.ResponseStream);
+            try
+            {
+                gcpJson = await statusStream.ReadToEndAsync();
+            }
+            catch { }
+#endif
+
+            return (true, gcpJson);
+        }
+
         private async Task<bool> tryGetCacheData(string hash, ResponseRelicData dic)
         {
 #if DEBUG || WINFORMS
@@ -357,7 +417,7 @@ namespace genshin_relic_score
                 MaxKeys = 3
             };
             var response = await client.ListObjectsV2Async(request, CancellationToken.None);
-            if (response.S3Objects.Count() != 3) { return false; }
+            if (response.S3Objects.Any(s => s.Key.Contains($"image/{hash}_status.json")) == false) { return false; }
 
             //------------------------------
             // キャッシュ取得

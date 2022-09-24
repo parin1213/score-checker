@@ -17,6 +17,7 @@ namespace genshin.relic.score.Models.Recognize
     {
         const string scretPath = @"./gcp.json";
         public byte[] imageBinary;
+        public string gcpRecogText { get => text?.ToString() ?? "{}"; }
         private RelicKind[] relicKind;
         private Character[] characters;
         private TextAnnotation text = null;
@@ -36,6 +37,11 @@ namespace genshin.relic.score.Models.Recognize
             characters = JsonConvert.DeserializeObject<Character[]>(File.ReadAllText("./character.json", Encoding.UTF8));
         }
 
+        public void parseFromJson(string jsonString)
+        {
+            text = TextAnnotation.Parser.ParseJson(jsonString);
+        }
+
         public IEnumerable<RelicWord> detectWords_fallback()
         {
             if (text == null)
@@ -44,7 +50,7 @@ namespace genshin.relic.score.Models.Recognize
                 // 画像のオブジェクトの生成
                 //------------------------------
                 var image = Google.Cloud.Vision.V1.Image.FromBytes(imageBinary);
-
+                
                 //------------------------------
                 // GCPへOCRリクエスト
                 //------------------------------
@@ -65,9 +71,12 @@ namespace genshin.relic.score.Models.Recognize
             //------------------------------
             // GCPへOCRリクエスト
             //------------------------------
-            ImageAnnotatorClient client = ImageAnnotatorClient.Create();
-            text = await client.DetectDocumentTextAsync(image);
-            var words = WordAnalyze(text);
+            if(text == null)
+            {
+                ImageAnnotatorClient client = ImageAnnotatorClient.Create();
+                text = await client.DetectDocumentTextAsync(image);
+            }
+            var words = WordAnalyzeV2(text);
 
             return words.ToList();
             //return text.Text.Split('\n').ToList();
@@ -116,7 +125,7 @@ namespace genshin.relic.score.Models.Recognize
                             var _text = string.Join("", word.Select(w => string.Join("", w.Symbols.Select(s => s.Text))));
 
                             //System.Diagnostics.Debug.WriteLine($"    box: {box}, Word: {_text}");
-                            var rWord =  new RelicWord()
+                            var rWord = new RelicWord()
                             {
                                 text = _text,
                                 rect = new Rectangle(
@@ -124,9 +133,9 @@ namespace genshin.relic.score.Models.Recognize
                                             new Size(max.X - min.X, max.Y - min.Y)
                                         ),
                                 chars = word.SelectMany(w => w.Symbols)
-                                            .Select(s => 
-                                                new RelicWord 
-                                                { 
+                                            .Select(s =>
+                                                new RelicWord
+                                                {
                                                     rect = s.BoundingBox.Vertices.ToRectangle(),
                                                     text = string.Join("", s.Text),
                                                 }),
@@ -140,7 +149,8 @@ namespace genshin.relic.score.Models.Recognize
                                 try
                                 {
                                     doSplit = splitWords(rWord, out rWord1, out rWord2);
-                                }catch(Exception ex)
+                                }
+                                catch (Exception ex)
                                 {
                                     // エラー時のフェールセーフ対策
                                     rWord1 = rWord;
@@ -159,18 +169,80 @@ namespace genshin.relic.score.Models.Recognize
             }
         }
 
+        private IEnumerable<RelicWord> WordAnalyzeV2(TextAnnotation text)
+        {
+            var words = text.Pages
+                            .SelectMany(p => p.Blocks)
+                            .SelectMany(b => b.Paragraphs)
+                            .SelectMany(p => p.Words);
+
+            var groups = words
+                        .GroupBy(word => word.BoundingBox.Vertices.Min(v => v.Y))
+                        .OrderBy(group => group.Key);
+
+            var chunk_y = getChunkWords_y(groups);
+
+            foreach (var word in chunk_y)
+            {
+                var min = word.SelectMany(w => w.BoundingBox.Vertices).OrderBy(v => v.X * v.Y).FirstOrDefault();
+                var max = word.SelectMany(w => w.BoundingBox.Vertices).OrderByDescending(v => v.X * v.Y).FirstOrDefault();
+                var box = $"({min.X}, {min.Y}) - ({max.X}, {max.Y})";
+                var _text = string.Join("", word.Select(w => string.Join("", w.Symbols.Select(s => s.Text))));
+
+                //System.Diagnostics.Debug.WriteLine($"    box: {box}, Word: {_text}");
+                var rWord = new RelicWord()
+                {
+                    text = _text,
+                    rect = new Rectangle(
+                                new Point(min.X, min.Y),
+                                new Size(max.X - min.X, max.Y - min.Y)
+                            ),
+                    chars = word.SelectMany(w => w.Symbols)
+                                .Select(s =>
+                                    new RelicWord
+                                    {
+                                        rect = s.BoundingBox.Vertices.ToRectangle(),
+                                        text = string.Join("", s.Text),
+                                    }),
+                };
+
+                var doSplit = false;
+                do
+                {
+                    RelicWord rWord1 = null;
+                    RelicWord rWord2 = null;
+                    try
+                    {
+                        doSplit = splitWords(rWord, out rWord1, out rWord2);
+                    }
+                    catch (Exception ex)
+                    {
+                        // エラー時のフェールセーフ対策
+                        rWord1 = rWord;
+                        rWord2 = null;
+                        doSplit = false;
+                    }
+                    yield return rWord1;
+                    if (rWord2 != null)
+                    {
+                        rWord = rWord2;
+                    }
+                } while (doSplit);
+            }
+        }
+
         private bool splitWords(RelicWord rWord, out RelicWord rWord1, out RelicWord rWord2)
         {
             rWord1 = null;
             rWord2 = null;
 
             bool doSplit = false;
-            for (int i = 1; i < rWord.chars.Count(); i++)
+            for (int i = 0; i < rWord.chars.Count(); i++)
             {
                 var prevC = rWord.chars.ElementAtOrDefault(i - 1);
                 var c = rWord.chars.ElementAtOrDefault(i);
                 var nextC = rWord.chars.ElementAtOrDefault(i + 1);
-                int prevMargin = c?.rect.X - prevC?.rect.Right ?? 0;
+                int prevMargin = c?.rect.X - prevC?.rect.Right ?? rWord.chars.ElementAtOrDefault(i).rect.Width;
                 int nextMargin = nextC?.rect.X - c?.rect.Right ?? 0;
                 int diff = Math.Abs(prevMargin - nextMargin);
                 if (0 < prevMargin &&
@@ -227,7 +299,7 @@ namespace genshin.relic.score.Models.Recognize
                 var min_x = means.rect.X - means.rect.Width;
                 var max_x = means.rect.X + means.rect.Width;
                 var min_y = means.rect.Y - means.rect.Width;
-                var max_y = means.rect.Y + means.rect.Width;
+                var max_y = means.rect.Y + means.rect.Height * 5.5;// 聖遺物のサブステータス:4行+行間0.5行×3=5.5
 
                 var tmpList = assignments
                                 .Where(r =>
@@ -438,12 +510,14 @@ namespace genshin.relic.score.Models.Recognize
                 {"攻擊力%",          ( 2.5d,  5.8d * 6)},
                 {"防御力",           ( 8.0d,  23d  * 6)},
                 {"防御力%",          ( 3.1d,  7.3d * 6)},
-                {"HP",               ( 110d,  299  * 6)},
-                {"HP%",              ( 2.5d,  5.8d * 6)},
-                {"元素熟知",         (  10d,  23   * 6)},
-                {"元素チャージ効率%",( 2.7d,  6.5  * 6)},
+                {"HP",              ( 110d,  299  * 6)},
+                {"HP%",             ( 2.5d,  5.8d * 6)},
+                {"元素熟知",          (  10d,  23   * 6)},
+                {"元素チャージ効率%",  ( 2.7d,  6.5  * 6)},
                 {"会心率%",          ( 1.6d,  3.9  * 6)},
-                {"会心ダメージ%",    ( 3.3d,  7.8  * 6)},
+                {"会心ダメージ%",     ( 3.3d,  7.8  * 6)},
+                {"会心率",           ( 0.0d,  0.0d)},
+                {"会心ダメージ",      ( 0.0d,  0.0d)},
             };
 
             var ignoreSetEffects = new List<(string, double)>()
@@ -484,7 +558,7 @@ namespace genshin.relic.score.Models.Recognize
             //------------------------------
             // あり得ない値（メイン効果等）の削除
             //------------------------------
-            foreach (var scoreRatePair in scoreRates)
+            foreach ( var scoreRatePair in scoreRates)
             {
                 var minValue = scoreRatePair.Value.minValue;
                 var maxValue = scoreRatePair.Value.maxValue;
@@ -503,11 +577,11 @@ namespace genshin.relic.score.Models.Recognize
                 var max = subStatusOption.Select(s => s.rect.Width * s.rect.Height).Max();
                 if (max != 0)
                 {
-                    subStatusOption = subStatusOption
+                     subStatusOption = subStatusOption
                         .Where(s => 0.1 < ((s.rect.Width * s.rect.Height) / (double)max))
                         .ToList();
                 }
-            }
+             }
             return subStatusOption;
         }
 

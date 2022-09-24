@@ -4,7 +4,6 @@ using System.Drawing;
 using System.Linq;
 using System.Text;
 using genshin.relic.score.JsonConverter;
-using Google.Cloud.Vision.V1;
 using Newtonsoft.Json;
 
 namespace genshin.relic.score.Models.Recognize
