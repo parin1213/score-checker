@@ -7,13 +7,13 @@
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 	<ItemGroup>
-		<Compile Include="C:\dev\aws\lambda\genshin-relic-score\genshin-relic-score\JsonConverter\RectConverter.cs" Link="JsonConverter\RectConverter.cs" />
-		<Compile Include="C:\dev\aws\lambda\genshin-relic-score\genshin-relic-score\Models\Lambda\LambdaResponse.cs" Link="Models\Lambda\LambdaResponse.cs" />
-		<Compile Include="C:\dev\aws\lambda\genshin-relic-score\genshin-relic-score\Models\Lambda\Request.cs" Link="Models\Lambda\Request.cs" />
-		<Compile Include="C:\dev\aws\lambda\genshin-relic-score\genshin-relic-score\Models\Recognize\RelicKind.cs" Link="Models\Recognize\RelicKind.cs" />
-		<Compile Include="C:\dev\aws\lambda\genshin-relic-score\genshin-relic-score\Models\Recognize\RelicWord.cs" Link="Models\Recognize\RelicWord.cs" />
-		<Compile Include="C:\dev\aws\lambda\genshin-relic-score\genshin-relic-score\Models\ResponseData\ResponseRelicData.cs" Link="Models\ResponseData\ResponseRelicData.cs" />
-		<Compile Include="C:\dev\aws\lambda\genshin-relic-score\genshin-relic-score\Models\ResponseData\Status.cs" Link="Models\ResponseData\Status.cs" />
+		<Compile Include="..\..\score-checker-aws-lambda-server\genshin-relic-score\JsonConverter\RectConverter.cs" Link="JsonConverter\RectConverter.cs" />
+		<Compile Include="..\..\score-checker-aws-lambda-server\genshin-relic-score\Models\Lambda\LambdaResponse.cs" Link="Models\Lambda\LambdaResponse.cs" />
+		<Compile Include="..\..\score-checker-aws-lambda-server\genshin-relic-score\Models\Lambda\Request.cs" Link="Models\Lambda\Request.cs" />
+		<Compile Include="..\..\score-checker-aws-lambda-server\genshin-relic-score\Models\Recognize\RelicKind.cs" Link="Models\Recognize\RelicKind.cs" />
+		<Compile Include="..\..\score-checker-aws-lambda-server\genshin-relic-score\Models\Recognize\RelicWord.cs" Link="Models\Recognize\RelicWord.cs" />
+		<Compile Include="..\..\score-checker-aws-lambda-server\genshin-relic-score\Models\ResponseData\ResponseRelicData.cs" Link="Models\ResponseData\ResponseRelicData.cs" />
+		<Compile Include="..\..\score-checker-aws-lambda-server\genshin-relic-score\Models\ResponseData\Status.cs" Link="Models\ResponseData\Status.cs" />
 	</ItemGroup>
 	<ItemGroup>
     <Content Include="C:\dev\twitter\.screts\score_checker_scret.json" Link="score_checker_scret.json">

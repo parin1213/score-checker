@@ -17,7 +17,7 @@
     <DefineConstants>TRACE;AWS</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
-    <Content Include="..\..\..\..\..\dev\gcp\.secrets\gcp.json" Link="gcp.json">
+    <Content Include="C:\dev\gcp\.secrets\gcp.json" Link="gcp.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

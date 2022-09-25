@@ -12,24 +12,24 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="..\..\..\..\..\dev\aws\lambda\genshin-relic-score\genshin-relic-score\Extentions\Extentions.cs" Link="Extentions\Extentions.cs" />
-    <Compile Include="..\..\..\..\..\dev\aws\lambda\genshin-relic-score\genshin-relic-score\JsonConverter\RectConverter.cs" Link="genshin.relic.score\JsonConverter\RectConverter.cs" />
-    <Compile Include="..\..\..\..\..\dev\aws\lambda\genshin-relic-score\genshin-relic-score\Models\Lambda\Request.cs" Link="genshin.relic.score\Models\Lambda\Request.cs" />
-    <Compile Include="..\..\..\..\..\dev\aws\lambda\genshin-relic-score\genshin-relic-score\Models\Lambda\LambdaResponse.cs" Link="genshin.relic.score\Models\Lambda\LambdaResponse.cs" />
-    <Compile Include="C:\dev\aws\lambda\genshin-relic-score\genshin-relic-score\Models\Recognize\Relic.cs" Link="genshin.relic.score\Models\Recognize\Relic.cs" />
-    <Compile Include="..\..\..\..\..\dev\aws\lambda\genshin-relic-score\genshin-relic-score\Models\Recognize\RelicKind.cs" Link="genshin.relic.score\Models\Recognize\RelicKind.cs" />
-    <Compile Include="..\..\..\..\..\dev\aws\lambda\genshin-relic-score\genshin-relic-score\Models\Recognize\Character.cs" Link="genshin.relic.score\Models\Recognize\Character.cs" />
-    <Compile Include="..\..\..\..\..\dev\aws\lambda\genshin-relic-score\genshin-relic-score\Models\Recognize\RelicWord.cs" Link="genshin.relic.score\Models\Recognize\RelicWord.cs" />
-    <Compile Include="..\..\..\..\..\dev\aws\lambda\genshin-relic-score\genshin-relic-score\Models\ResponseData\ResponseRelicData.cs" Link="genshin.relic.score\Models\ResponseData\ResponseRelicData.cs" />
-    <Compile Include="..\..\..\..\..\dev\aws\lambda\genshin-relic-score\genshin-relic-score\Models\ResponseData\Status.cs" Link="genshin.relic.score\Models\ResponseData\Status.cs" />
-    <Compile Include="..\..\..\..\..\dev\aws\lambda\genshin-relic-score\genshin-relic-score\Function.cs" Link="genshin.relic.score\Function.cs" />
+    <Compile Include="..\score-checker-aws-lambda-server\genshin-relic-score\Extentions\Extentions.cs" Link="Extentions\Extentions.cs" />
+    <Compile Include="..\score-checker-aws-lambda-server\genshin-relic-score\JsonConverter\RectConverter.cs" Link="genshin.relic.score\JsonConverter\RectConverter.cs" />
+    <Compile Include="..\score-checker-aws-lambda-server\genshin-relic-score\Models\Lambda\Request.cs" Link="genshin.relic.score\Models\Lambda\Request.cs" />
+    <Compile Include="..\score-checker-aws-lambda-server\genshin-relic-score\Models\Lambda\LambdaResponse.cs" Link="genshin.relic.score\Models\Lambda\LambdaResponse.cs" />
+    <Compile Include="..\score-checker-aws-lambda-server\genshin-relic-score\Models\Recognize\Relic.cs" Link="genshin.relic.score\Models\Recognize\Relic.cs" />
+    <Compile Include="..\score-checker-aws-lambda-server\genshin-relic-score\Models\Recognize\RelicKind.cs" Link="genshin.relic.score\Models\Recognize\RelicKind.cs" />
+    <Compile Include="..\score-checker-aws-lambda-server\genshin-relic-score\Models\Recognize\Character.cs" Link="genshin.relic.score\Models\Recognize\Character.cs" />
+    <Compile Include="..\score-checker-aws-lambda-server\genshin-relic-score\Models\Recognize\RelicWord.cs" Link="genshin.relic.score\Models\Recognize\RelicWord.cs" />
+    <Compile Include="..\score-checker-aws-lambda-server\genshin-relic-score\Models\ResponseData\ResponseRelicData.cs" Link="genshin.relic.score\Models\ResponseData\ResponseRelicData.cs" />
+    <Compile Include="..\score-checker-aws-lambda-server\genshin-relic-score\Models\ResponseData\Status.cs" Link="genshin.relic.score\Models\ResponseData\Status.cs" />
+    <Compile Include="..\score-checker-aws-lambda-server\genshin-relic-score\Function.cs" Link="genshin.relic.score\Function.cs" />
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="..\..\..\..\..\dev\aws\lambda\genshin-relic-score\genshin-relic-score\character.json" Link="character.json">
+    <Content Include="..\score-checker-aws-lambda-server\genshin-relic-score\character.json" Link="character.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="..\..\..\..\..\dev\aws\lambda\genshin-relic-score\genshin-relic-score\relic.json" Link="relic.json">
+    <Content Include="..\score-checker-aws-lambda-server\genshin-relic-score\relic.json" Link="relic.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <Content Include="c:\dev\gcp\.secrets\gcp.json" Link="gcp.json">
