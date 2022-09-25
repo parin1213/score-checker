@@ -32,14 +32,21 @@ namespace genshin_relic
 {
     public partial class Form1 : Form
     {
-        BindingList<DataSource> list = new BindingList<DataSource>();
+        Task _updateTask = null;
+        List<DataSource> _list = new List<DataSource>();
+        BindingList<DataSource> bindList = new BindingList<DataSource>();
+
         private int pageCount = 0;
+
         private int pageSize
         {
-            get => chkOnlyDiffirent.Checked ? maxCount : 100;
+            get => chkOnlyDiffirent.Checked ? maxCount : 1000;
         }
-        private IEnumerable<Task<DataSource>> tasks;
-        private int maxCount = 0;
+ 
+        private RelicManager relicManager;
+
+        private int maxCount { get => relicManager?.maxCount ?? 0; }
+
         private int maxPageSize
         {
             get => (int) Math.Ceiling(maxCount / (double)pageSize);
@@ -58,143 +65,55 @@ namespace genshin_relic
                 column.SortMode = DataGridViewColumnSortMode.Automatic;
             }
 
-            await updateList();
-
+            timer1.Enabled = true;
+            lblPage.Text = $"{pageCount + 1}/{maxPageSize}";
             this.WindowState = FormWindowState.Maximized;
+
+            _updateTask = updateList();
+            await _updateTask;
         }
+
         //const string dir = @"C:\dev\aws\s3\relic-server-log_next\image";
         const string dir = @"C:\dev\aws\s3\relic-server-log_next\image";
 
-        private async void button1_Click(object sender, EventArgs e)
-        {
-            tasks = null;
-            await updateList();
-        }
-
         private async Task updateList()
         {
-            list.Clear();
-            var dataSourceList = new BindingList<DataSource>();
-            dataGridView1.DataSource = dataSourceList;
+            var cached = chkCached.Checked.ToString();
+            dataGridView1.DataSource = bindList;
+            relicManager = new RelicManager(cached, dir, chkVerify.Checked);
+            var bindListAsync = relicManager.updateList().ConfigureAwait(false);
+            changeEnalbed();
 
-            if (tasks == null)
+            await foreach (var datasource in bindListAsync)
             {
-                var files = Directory.EnumerateFiles(dir, "*.png", SearchOption.AllDirectories);
-                files = files.OrderByDescending(f => new FileInfo(f).LastWriteTime).ToList();
-                maxCount = files.Count();
-                tasks = files.Select((filePath, index) => getRelic(index, filePath, chkVerify.Checked));
-                lblPage.Text = $"{pageCount + 1}/{maxPageSize}";
-                changeEnalbed();
-            }
-
-            var count = 1;
-            foreach (var task in tasks)
-            {
-                var dataSource = await task;
-
-
-                list.Add(dataSource);
-
-                var min = pageCount * pageSize;
-                var max = min + pageSize;
-                if(min <= count && count <= max)
-                {
-                    dataSourceList.Add(dataSource);
-                }
-
-                if (dataSource.relic.extendRelic != null)
-                {
-                    foreach (var exRelic in dataSource.relic.extendRelic)
-                    {
-                        var dataSourceEx = createDataSource(Path.Combine(dir, dataSource.FileName), exRelic);
-                        exRelic.RelicMD5 = dataSource.relic.RelicMD5;
-                        dataSourceEx.index = dataSource.index;
-                        list.Add(dataSourceEx);
-                        if (min <= count && count <= max)
-                        {
-                            dataSourceList.Add(dataSourceEx);
-                        }
-                    }
-                }
-
-                lblSum.Text = $"{count++}/{this.maxCount}";
+                _list.Add(datasource);
             }
         }
 
-        private async Task<DataSource> getRelic(int index, string filePath, bool force = false)
+
+        private async void button1_Click(object sender, EventArgs e)
         {
-            var start = DateTime.Now;
-            ResponseRelicData relic = default;
-            if (force)
+            _updateTask = updateList();
+            await _updateTask;
+        }
+
+        private IEnumerable<DataSource> extractRelicData(DataSource dataSource)
+        {
+            var dataSourceList = new List<DataSource>();
+            dataSourceList.Add(dataSource);
+
+            if (dataSource.relic.extendRelic != null)
             {
-                relic = await relic_analyze(filePath);
-            }
-            else
-            {
-                try
+                foreach (var exRelic in dataSource.relic.extendRelic)
                 {
-                    relic = JsonConvert.DeserializeObject<ResponseRelicData>(File.ReadAllText(filePath.Replace(".png", "_status.json")));
-                }catch (Exception ex)
-                {
-                    relic = await relic_analyze(filePath);
+                    var dataSourceEx = DataSource.Create(Path.Combine(dir, dataSource.FileName), exRelic);
+                    exRelic.RelicMD5 = dataSource.relic.RelicMD5;
+                    dataSourceEx.index = dataSource.index;
+                    dataSourceList.Add(dataSourceEx);
                 }
             }
-            var end = DateTime.Now;
-            if(string.IsNullOrEmpty(relic.StackTrace) == false)
-            {
-                MessageBox.Show(relic.StackTrace);
-            }
-            var dataSource = createDataSource(filePath, relic);
-            dataSource.index = index;
-            dataSource.ProcessTime = (end - start);
 
-            return dataSource;
-        }
-
-        private DataSource createDataSource(string filePath, ResponseRelicData relic)
-        {
-            var sub_status1 = relic?.sub_status?.ElementAtOrDefault(0);
-            var sub_status2 = relic?.sub_status?.ElementAtOrDefault(1);
-            var sub_status3 = relic?.sub_status?.ElementAtOrDefault(2);
-            var sub_status4 = relic?.sub_status?.ElementAtOrDefault(3);
-
-            var dataSource = new DataSource
-            {
-                FileName = Path.GetFileName(filePath),
-                set = relic?.set ?? "",
-                category = relic?.category ?? "",
-                main_status = relic?.main_status?.ToString() ?? "",
-                sub_status1 = sub_status1?.ToString() ?? "",
-                sub_status2 = sub_status2?.ToString() ?? "",
-                sub_status3 = sub_status3?.ToString() ?? "",
-                sub_status4 = sub_status4?.ToString() ?? "",
-                score = relic?.score ?? "",
-                character = relic?.character ?? "",
-                LastUpdate = new FileInfo(filePath).LastWriteTime,
-                relic = relic,
-            };
-            return dataSource;
-        }
-
-        private async Task<ResponseRelicData> relic_analyze(string filePath)
-        {
-            var content = await File.ReadAllBytesAsync(filePath);
-            var request = new Request()
-            {
-                IsBase64Encoded = true,
-                Body = Convert.ToBase64String(content),
-                QueryStringParameters = JObject.FromObject(new Dictionary<string, string>()
-                {
-                    { "dev_mode", "1"  },
-                    { "cached", chkCached.Checked.ToString() },
-                }),
-
-            };
-            var lambda = new Function();
-            var res = await lambda.FunctionHandler(request, null);
-            var relic = JsonConvert.DeserializeObject<ResponseRelicData>(res.body);
-
-            return relic;
+            return dataSourceList;
         }
 
         private void dataGridView1_SelectionChanged(object sender, EventArgs e)
@@ -306,91 +225,6 @@ namespace genshin_relic
             return dstImg;
         }
 
-        IEnumerable<IEnumerable<Status>> getStatusCluster(IEnumerable<Status> sub_status)
-        {
-            var list = new List<List<Status>>();
-            var assignments = sub_status.OrderBy(s => System.Drawing.Point.Empty.Distance(s.rect.Location)).ToList();
-
-            while (assignments.Any())
-            {
-                var means = assignments.FirstOrDefault();
-                if (means == null)
-                {
-                    list.Add(sub_status.ToList());
-                    break;
-                }
-
-                var min_x = means.rect.X - means.rect.Width;
-                var max_x = means.rect.X + means.rect.Width;
-                var min_y = means.rect.Y - means.rect.Width;
-                var max_y = means.rect.Y + means.rect.Width;
-
-                var tmpList = assignments
-                                .Where(r =>
-                                    (min_x < r.rect.X && r.rect.X < max_x) &&
-                                    (min_y < r.rect.Y && r.rect.Y < max_y))
-                                .ToList();
-                list.Add(tmpList);
-                assignments = assignments.Except(tmpList).ToList();
-            }
-
-            return list;
-        }
-
-        private Rectangle getCropRange(System.Drawing.Image orgimage, ResponseRelicData relic)
-        {
-            var rect = relic?.main_status?.rect ?? default;
-            foreach (var status in relic.sub_status)
-            {
-                if (rect == default) { rect = status.rect; continue; }
-                rect = Rectangle.Union(rect, status.rect);
-            }
-            if (rect == default) { rect = new Rectangle(0, 0, orgimage.Width, orgimage.Height); }
-            int min_x = rect.X - (orgimage.Width * 5 / 100);
-            if (min_x < 0) { min_x = 0; }
-            var wordsRect = relic.word_list.Select(w => w.rect).Where(w => min_x < w.X);
-            foreach (var w in wordsRect)
-            {
-                rect = Rectangle.Union(rect, w);
-            }
-
-            return rect;
-        }
-
-        private Bitmap createCropImage(Bitmap orgimage, Rectangle rect, ResponseRelicData relic)
-        {
-            rect.X -= orgimage.Width * 5 / 100;
-            rect.Y -= orgimage.Height * 5 / 100;
-            rect.Width += (orgimage.Width * 5 / 100) * 2;
-            rect.Height += (orgimage.Height * 5 / 100) * 2;
-            var dstImg = new Bitmap(rect.Width, rect.Height);
-            using var g = Graphics.FromImage(dstImg);
-            g.DrawImage(orgimage, new Rectangle(0, 0, rect.Width, rect.Height), rect, GraphicsUnit.Pixel);
-
-            using var pen = new Pen(Color.LightGreen, (rect.Width + rect.Height) / 2 * 1 / 100);
-            if (relic.main_status != null)
-            {
-                var mainRect = relic.main_status.rect;
-                mainRect.X -= rect.X;
-                mainRect.Y -= rect.Y;
-                g.DrawRectangle(pen, mainRect);
-            }
-
-            if (relic.sub_status.Any())
-            {
-                var subRects = relic.sub_status.Select(s =>
-                {
-                    var subRect = s.rect;
-                    subRect.X -= rect.X;
-                    subRect.Y -= rect.Y;
-                    return subRect;
-                }).ToArray();
-                g.DrawRectangles(pen, subRects);
-            }
-
-            return dstImg;
-        }
-
         private void changeImage(PictureBox pic, System.Drawing.Image bmp)
         {
             var oldImage = pic.Image;
@@ -403,48 +237,48 @@ namespace genshin_relic
 
         private async void btnAnalyze_Click(object sender, EventArgs e)
         {
-            btnAnalyze.Enabled = false;
-            var start = DateTime.Now;
-            var relic = await relic_analyze(txtUrl.Text);
-            var end = DateTime.Now;
+            //btnAnalyze.Enabled = false;
+            //var start = DateTime.Now;
+            //var relic = await relic_analyze(txtUrl.Text);
+            //var end = DateTime.Now;
 
-            var srcList = list.Where(d => d.FileName == Path.GetFileName(txtUrl.Text));
+            //var srcList = list.Where(d => d.FileName == Path.GetFileName(txtUrl.Text));
 
-            var flat = relic.extendRelic ?? new List<ResponseRelicData>();
-            flat.Add(relic);
-            foreach (var r in flat)
-            {
-                var p = srcList.Where(p => p.set == r.set).FirstOrDefault();
-                if (p == null) continue;
+            //var flat = relic.extendRelic ?? new List<ResponseRelicData>();
+            //flat.Add(relic);
+            //foreach (var r in flat)
+            //{
+            //    var p = srcList.Where(p => p.set == r.set).FirstOrDefault();
+            //    if (p == null) continue;
 
-                p.set = r.set;
-                p.category = r.category;
-                p.main_status = r.main_status?.ToString();
-                p.sub_status1 = r.sub_status?.ElementAtOrDefault(0)?.ToString();
-                p.sub_status2 = r.sub_status?.ElementAtOrDefault(1)?.ToString();
-                p.sub_status3 = r.sub_status?.ElementAtOrDefault(2)?.ToString();
-                p.sub_status4 = r.sub_status?.ElementAtOrDefault(3)?.ToString();
-                p.score = r.score;
-                p.character = r.character;
+            //    p.set = r.set;
+            //    p.category = r.category;
+            //    p.main_status = r.main_status?.ToString();
+            //    p.sub_status1 = r.sub_status?.ElementAtOrDefault(0)?.ToString();
+            //    p.sub_status2 = r.sub_status?.ElementAtOrDefault(1)?.ToString();
+            //    p.sub_status3 = r.sub_status?.ElementAtOrDefault(2)?.ToString();
+            //    p.sub_status4 = r.sub_status?.ElementAtOrDefault(3)?.ToString();
+            //    p.score = r.score;
+            //    p.character = r.character;
 
-                p.LastUpdate = new FileInfo(txtUrl.Text).LastWriteTime;
-                p.ProcessTime = (end - start);
+            //    p.LastUpdate = new FileInfo(txtUrl.Text).LastWriteTime;
+            //    p.ProcessTime = (end - start);
 
-                r.RelicMD5 = relic.RelicMD5;
-                p.relic = r;
-                btnAnalyze.Enabled = true;
-            }
+            //    r.RelicMD5 = relic.RelicMD5;
+            //    p.relic = r;
+            //    btnAnalyze.Enabled = true;
+            //}
 
-            foreach (DataGridViewCell cell in dataGridView1.SelectedCells)
-            {
-                dataGridView1.UpdateCellValue(cell.ColumnIndex, cell.RowIndex);
-            }
+            //foreach (DataGridViewCell cell in dataGridView1.SelectedCells)
+            //{
+            //    dataGridView1.UpdateCellValue(cell.ColumnIndex, cell.RowIndex);
+            //}
 
-            var selected = dataGridView1.SelectedRows;
-            if (selected.Count <= 0) { return; }
+            //var selected = dataGridView1.SelectedRows;
+            //if (selected.Count <= 0) { return; }
 
-            var item = selected[0];
-            dataGridView1_RowsAdded(sender, new DataGridViewRowsAddedEventArgs(item.Index, item.Cells.Count));
+            //var item = selected[0];
+            //dataGridView1_RowsAdded(sender, new DataGridViewRowsAddedEventArgs(item.Index, item.Cells.Count));
         }
 
         private void dataGridView1_RowsAdded(object sender, DataGridViewRowsAddedEventArgs e)
@@ -487,13 +321,13 @@ namespace genshin_relic
                 var imageFilePath = Path.Combine(dir, $"{guild}.png");
                 var jsonFilePath = Path.Combine(dir, $"{guild}_status.json");
                 var relic = JsonConvert.DeserializeObject<ResponseRelicData>(File.ReadAllText(jsonFilePath));
-                var dataSource = createDataSource(imageFilePath, relic);
+                var dataSource = DataSource.Create(imageFilePath, relic);
 
                 if(relic.extendRelic?.Any() ?? false)
                 {
                     var r = relic.extendRelic.Append(relic).FirstOrDefault(r => $"{r.category}/{r.set}" == $"{row.category}/{row.set}") ?? relic;
                     r.RelicMD5 = relic.RelicMD5;
-                    dataSource = createDataSource(imageFilePath, r);
+                    dataSource = DataSource.Create(imageFilePath, r);
                 }
 
                 var t = typeof(DisplayNameAttribute);
@@ -584,12 +418,9 @@ namespace genshin_relic
             lblPage.Text = $"{pageCount + 1}/{maxPageSize}";
             changeEnalbed();
 
-            var _list = new BindingList<DataSource>();
-            dataGridView1.DataSource = _list;
-
             var min = pageCount * pageSize;
-            var max = min + pageSize;
-            _list.AddRange(list.Where(d => min < d.index && d.index < max));
+            bindList = new BindingList<DataSource>(_list.Skip(min).Take(pageSize).ToList());
+            dataGridView1.DataSource = bindList;
         }
 
         private void btnNext_Click(object sender, EventArgs e)
@@ -599,12 +430,9 @@ namespace genshin_relic
             lblPage.Text = $"{pageCount+1}/{maxPageSize}";
             changeEnalbed();
 
-            var _list = new BindingList<DataSource>();
-            dataGridView1.DataSource = _list;
-
             var min = pageCount * pageSize;
-            var max = min + pageSize;
-            _list.AddRange(list.Where(d => min <= d.index && d.index <= max));
+            bindList = new BindingList<DataSource>(_list.Skip(min).Take(pageSize).ToList());
+            dataGridView1.DataSource = bindList;
         }
 
         private void changeEnalbed()
@@ -704,6 +532,25 @@ namespace genshin_relic
                 dst.Line(lines[i].P1, lines[i].P2, Scalar.Red, 1, LineTypes.AntiAlias);
             }
             Cv2.ImShow("dst", dst);
+        }
+
+        private void timer1_Tick(object sender, EventArgs e)
+        {
+            var progressCount = _list.Count;
+            lblPage.Text = $"{pageCount + 1:#,0}/{maxPageSize:#,0}";
+            lblSum.Text = $"{progressCount:#,0}/{relicManager.maxCount:#,0}";
+
+            var min = pageCount * pageSize;
+            var max = min + pageSize;
+            if (bindList.Count() == 0 && max < progressCount)
+            {
+                bindList.AddRange(_list.Skip(min).Take(pageSize));
+            }
+
+            if (_updateTask.IsCompleted && progressCount == relicManager.maxCount)
+            {
+                timer1.Enabled = false;
+            }
         }
     }
 }

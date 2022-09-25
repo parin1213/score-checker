@@ -13,7 +13,7 @@
 
 	<ItemGroup>
 		<Compile Include="../common/**/*.cs" />
-		<Compile Include="..\score-checker-aws-lambda-server\genshin-relic-score\Function.cs" Link="genshin.relic.score\Function.cs" />
+		<Compile Include="..\score-checker-aws-lambda-server\genshin-relic-score\Function.cs" />
 	</ItemGroup>
 
 	<ItemGroup>

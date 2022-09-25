@@ -51,6 +51,7 @@ namespace genshin_relic
             this.chkOnlyDiffirent = new System.Windows.Forms.CheckBox();
             this.btnEdge = new System.Windows.Forms.Button();
             this.chkMultiRelic = new System.Windows.Forms.CheckBox();
+            this.timer1 = new System.Windows.Forms.Timer(this.components);
             ((System.ComponentModel.ISupportInitialize)(this.originalImage)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridView1)).BeginInit();
             this.contextMenuStrip1.SuspendLayout();
@@ -282,6 +283,10 @@ namespace genshin_relic
             this.chkMultiRelic.Text = "ビルド画像のみ";
             this.chkMultiRelic.UseVisualStyleBackColor = true;
             // 
+            // timer1
+            // 
+            this.timer1.Tick += new System.EventHandler(this.timer1_Tick);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 20F);
@@ -367,6 +372,7 @@ namespace genshin_relic
         private System.Windows.Forms.CheckBox chkOnlyDiffirent;
         private System.Windows.Forms.Button btnEdge;
         private System.Windows.Forms.CheckBox chkMultiRelic;
+        private System.Windows.Forms.Timer timer1;
     }
 }
 

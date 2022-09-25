@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
+using System.Linq;
 using System.Text;
 using genshin.relic.score.Models.ResponseData;
 
@@ -49,5 +51,31 @@ namespace genshin_relic
 
         [Browsable(false)]
         public ResponseRelicData relic { get; set; }
+
+        public static DataSource Create(string filePath, ResponseRelicData relic)
+        {
+            var sub_status1 = relic?.sub_status?.ElementAtOrDefault(0);
+            var sub_status2 = relic?.sub_status?.ElementAtOrDefault(1);
+            var sub_status3 = relic?.sub_status?.ElementAtOrDefault(2);
+            var sub_status4 = relic?.sub_status?.ElementAtOrDefault(3);
+
+            var dataSource = new DataSource
+            {
+                FileName = Path.GetFileName(filePath),
+                set = relic?.set ?? "",
+                category = relic?.category ?? "",
+                main_status = relic?.main_status?.ToString() ?? "",
+                sub_status1 = sub_status1?.ToString() ?? "",
+                sub_status2 = sub_status2?.ToString() ?? "",
+                sub_status3 = sub_status3?.ToString() ?? "",
+                sub_status4 = sub_status4?.ToString() ?? "",
+                score = relic?.score ?? "",
+                character = relic?.character ?? "",
+                LastUpdate = new FileInfo(filePath).LastWriteTime,
+                relic = relic,
+            };
+            return dataSource;
+        }
+
     }
 }
