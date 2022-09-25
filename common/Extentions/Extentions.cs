@@ -30,5 +30,12 @@ namespace genshin.relic.score.Extentions
                                     new Size(max.X - min.X, max.Y - min.Y)
                                 );
         }
+        public static void AddRange<T>(this IList<T> list, IEnumerable<T> add)
+        {
+            foreach (var item in add)
+            {
+                list.Add(item);
+            }
+        }
     }
 }

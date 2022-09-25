@@ -20,7 +20,6 @@ using genshin.relic.score.Extentions;
 using genshin.relic.score.Models;
 using genshin.relic.score.Models.Lambda;
 using genshin.relic.score.Models.ResponseData;
-using genshin_relic.Extentions;
 using genshin_relic_score;
 using Google.Cloud.Vision.V1;
 using Newtonsoft.Json;
