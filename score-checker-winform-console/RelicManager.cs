@@ -39,13 +39,11 @@ namespace genshin_relic
             var dataSourceList = new BindingList<DataSource>();
 
             var files = Directory.EnumerateFiles(dir, "*.png", SearchOption.AllDirectories)
-                                    .OrderByDescending(f => new FileInfo(f).LastWriteTime)
-                                    .ToArray();
-            maxCount = files.Length;
+                                    .OrderByDescending(f => new FileInfo(f).LastWriteTime);
+            maxCount = files.Count();
 
-            for(var index = 0; index < maxCount; index++)
+            foreach((var file, var index) in files.Select((f, i)=> (f, i)))
             {
-                var file = files[index];
                 yield return await getRelic(index, file, chkVerify).ConfigureAwait(false);
             }
         }

@@ -80,14 +80,18 @@ namespace genshin_relic
         {
             var cached = chkCached.Checked.ToString();
             dataGridView1.DataSource = bindList;
-            relicManager = new RelicManager(cached, dir, chkVerify.Checked);
-            var bindListAsync = relicManager.updateList().ConfigureAwait(false);
-            changeEnalbed();
 
-            await foreach (var datasource in bindListAsync)
+            await Task.Run(async () =>
             {
-                _list.Add(datasource);
-            }
+                relicManager = new RelicManager(cached, dir, chkVerify.Checked);
+                var bindListAsync = relicManager.updateList().ConfigureAwait(false);
+                changeEnalbed();
+
+                await foreach (var datasource in bindListAsync)
+                {
+                    _list.Add(datasource);
+                }
+            }).ConfigureAwait(false);
         }
 
 
